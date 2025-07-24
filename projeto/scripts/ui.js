@@ -24,6 +24,7 @@ class UI {
         this.previousTime = null;
         this.gameMode = 'classic'; // 'classic' ou 'continuous'
         this.lapCount = 0; // Contador de voltas para modo contínuo
+        this.selectedTeam = null; // Team selecionado para aplicar cor
         
         this.initializeEventListeners();
         this.loadSavedData();
@@ -82,9 +83,7 @@ class UI {
         this.elements.teamSelect.addEventListener('change', (e) => {
             this.savePlayerData();
             // Update car color based on team selection
-            if (window.game && window.game.car) {
-                window.game.car.updateTeamColor(e.target.value);
-            }
+            this.updateCarColor(e.target.value);
         });
         
         // Game mode selection
@@ -124,6 +123,9 @@ class UI {
         const savedTeam = localStorage.getItem('hotlap_team');
         if (savedTeam) {
             this.elements.teamSelect.value = savedTeam;
+            this.selectedTeam = savedTeam;
+        } else {
+            this.selectedTeam = this.elements.teamSelect.value;
         }
         
         const savedMode = localStorage.getItem('hotlap_game_mode');
@@ -383,7 +385,8 @@ class UI {
         
         // Set car color based on current team selection
         if (window.game && window.game.car) {
-            window.game.car.updateTeamColor(this.elements.teamSelect.value);
+            const selectedTeam = this.selectedTeam || this.elements.teamSelect.value;
+            window.game.car.updateTeamColor(selectedTeam);
         }
     }
     
@@ -675,6 +678,17 @@ class UI {
         if (nextTrackLabel) {
             nextTrackLabel.textContent = `Próxima pista em: ${hours}h ${minutes}m ${seconds}s`;
         }
+    }
+    
+    // Update car color immediately when team is selected
+    updateCarColor(teamValue) {
+        // Update immediately if game exists
+        if (window.game && window.game.car) {
+            window.game.car.updateTeamColor(teamValue);
+        }
+        
+        // Store the selected team to apply when game initializes
+        this.selectedTeam = teamValue;
     }
 }
 
