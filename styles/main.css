@@ -1,0 +1,854 @@
+/* Overlay para crash e melhor volta */
+.lap-complete-overlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0,0,0,0.85);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    z-index: 10;
+    backdrop-filter: blur(3px);
+    animation: fadeIn 0.3s ease-out;
+}
+
+.lap-complete-message {
+    font-size: 2rem;
+    font-weight: bold;
+    color: #fff;
+    margin-bottom: 18px;
+    text-shadow: 2px 2px 0 rgba(0,0,0,0.2);
+}
+
+.lap-time-display {
+    font-size: 2.2rem;
+    font-weight: bold;
+    color: #00ccff;
+    margin-bottom: 18px;
+    font-family: 'Courier New', monospace;
+    text-shadow: 2px 2px 0 rgba(0,0,0,0.2);
+}
+
+.continue-instruction {
+    font-size: 1.1rem;
+    color: #fff;
+    background: rgba(0,0,0,0.3);
+    padding: 10px 20px;
+    border-radius: 8px;
+    margin-top: 10px;
+    font-weight: bold;
+    letter-spacing: 1px;
+}
+
+.best-lap-indicator {
+    font-size: 1.3rem;
+    color: #00cc00;
+    font-weight: bold;
+    margin-bottom: 10px;
+    text-shadow: 2px 2px 0 rgba(0,0,0,0.2);
+}
+/* Linha de tempos e sparkline */
+.top-times-row {
+    display: flex;
+    justify-content: center;
+    align-items: stretch;
+    gap: 24px;
+    margin-top: 18px;
+}
+
+.sparkline-box {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    background: #f5f5f5;
+    border: 2px solid #0066ff;
+    border-radius: 10px;
+    box-shadow: 0 2px 6px rgba(0,102,255,0.08);
+    padding: 14px 18px;
+    min-width: 120px;
+    height: 88px; /* Altura fixa para igualar aos outros cards */
+}
+
+.sparkline-label {
+    font-size: 0.85rem;
+    color: #0066ff;
+    font-weight: bold;
+    margin-bottom: 8px;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+}
+
+#sparkline {
+    display: flex;
+    gap: 4px;
+    height: 30px;
+    align-items: flex-end;
+    justify-content: center;
+    padding: 2px 0;
+}
+
+/* Barras do sparkline usando divs */
+.sparkline-bar {
+    width: 12px;
+    border-radius: 2px;
+    transition: all 0.3s ease;
+    position: relative;
+    background: linear-gradient(to top, currentColor, currentColor);
+}
+
+.sparkline-bar.first-lap {
+    color: #00cc00; /* Verde - primeira volta */
+}
+
+.sparkline-bar.personal-best {
+    color: #9966ff; /* Roxo - melhor tempo */
+}
+
+.sparkline-bar.slower {
+    color: #ffcc00; /* Amarelo - mais lento */
+}
+
+.sparkline-bar.empty {
+    color: #ddd; /* Cinza para barras vazias */
+}
+
+/* Remove os estilos antigos do sparkline */
+.sparkline-lap {
+    display: none;
+}
+/* Top times boxes below title */
+.top-times {
+    display: flex;
+    justify-content: center;
+    align-items: stretch;
+    gap: 24px;
+}
+
+.top-time-box {
+    background: #f5f5f5;
+    border: 2px solid #0066ff;
+    border-radius: 10px;
+    box-shadow: 0 2px 6px rgba(0,102,255,0.08);
+    padding: 14px 18px;
+    min-width: 120px;
+    height: 88px; /* Altura fixa igual ao sparkline */
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+}
+
+#lap-count-box {
+    background: #f0f8f0;
+    border-color: #00cc00;
+    box-shadow: 0 2px 6px rgba(0,204,0,0.08);
+}
+
+#lap-count-box .top-time-label {
+    color: #00cc00;
+}
+
+#lap-count-box .top-time-value {
+    color: #00cc00;
+}
+
+.top-time-label {
+    font-size: 0.85rem;
+    color: #0066ff;
+    font-weight: bold;
+    margin-bottom: 6px;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+}
+
+.top-time-value {
+    font-size: 1.6rem;
+    font-family: 'Courier New', monospace;
+    font-weight: bold;
+    color: #222;
+    letter-spacing: 2px;
+}
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+    font-family: 'Courier New', monospace;
+    -webkit-touch-callout: none;
+    -webkit-user-select: none;
+    -khtml-user-select: none;
+    -moz-user-select: none;
+    -ms-user-select: none;
+    user-select: none;
+}
+
+body {
+    background: white;
+    height: 100vh;
+    padding: 10px;
+    overflow-x: hidden; /* Previne scroll horizontal */
+    display: flex;
+    flex-direction: column;
+}
+
+.game-container {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    max-width: 1200px;
+    width: 100%;
+    margin: 0 auto;
+    min-height: 0; /* Importante para permitir que o conteúdo encolha */
+}
+
+.pixel-title-box {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 4px;
+    margin-bottom: 18px;
+    margin-top: clamp(24px, 6vh, 60px);
+}
+
+.pixel-title-text {
+    font-size: clamp(1.2rem, 4vw, 2.5rem);
+    font-weight: bold;
+    color: black;
+    letter-spacing: 2px;
+    margin-bottom: 0;
+}
+
+.tagline {
+    color: #666;
+    font-size: clamp(0.7rem, 1.5vw, 1rem);
+    margin-bottom: 0;
+}
+
+#next-track-time {
+    text-align: center;
+    color: #666;
+    font-size: 0.85rem;
+    margin-bottom: 0;
+}
+
+.game-ui {
+    display: grid;
+    grid-template-columns: 250px 1fr;
+    gap: 15px;
+    align-items: center;
+    justify-content: center;
+    flex: 1;
+    min-height: 0;
+    width: 100%;
+    max-width: 1200px;
+    margin: 2px auto 0 auto;
+}
+
+.controls-panel {
+    background: #f5f5f5;
+    padding: 12px;
+    border: 2px solid black;
+    border-radius: 10px;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.1);
+    height: min(calc(100vh - 150px), 600px);
+}
+
+.player-setup {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    margin-bottom: 12px;
+}
+
+.player-setup label {
+    font-size: 0.75rem;
+    color: #666;
+    text-transform: uppercase;
+    font-weight: bold;
+}
+
+.player-setup input,
+.player-setup select {
+    width: 100%;
+    padding: 6px;
+    border: 2px solid black;
+    background: white;
+    font-family: inherit;
+    font-size: 0.85rem;
+}
+
+.mode-description {
+    font-size: 0.65rem;
+    color: #666;
+    margin-top: 3px;
+    background: white;
+    padding: 6px;
+    border-radius: 4px;
+    border-left: 3px solid #0066ff;
+}
+
+.pixel-button {
+    width: 100%;
+    padding: 8px;
+    border: 2px solid black;
+    background: #e6f3ff;
+    color: #0066ff;
+    font-weight: bold;
+    font-size: 0.85rem;
+    cursor: pointer;
+    transition: all 0.2s;
+    margin: 8px 0;
+    /* Permite interação touch */
+    -webkit-user-select: none;
+    user-select: none;
+    -webkit-tap-highlight-color: rgba(0,102,255,0.3);
+    touch-action: manipulation;
+}
+
+.pixel-button:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+}
+
+/* Melhor responsividade para touch */
+.pixel-button:active {
+    transform: translateY(1px);
+    box-shadow: 0 1px 2px rgba(0,0,0,0.2);
+}
+
+.mode-toggle {
+    background: #f0f8f0 !important;
+    color: #006600 !important;
+    border-color: #006600 !important;
+}
+
+.mode-toggle:hover {
+    background: #e6f2e6 !important;
+}
+
+.mode-toggle:active {
+    background: #d9f0d9 !important;
+}
+
+/* Estilos específicos para dispositivos touch */
+@media (hover: none) and (pointer: coarse) {
+    .pixel-button {
+        padding: 12px;
+        font-size: 0.9rem;
+        min-height: 48px; /* Tamanho mínimo recomendado para touch */
+        touch-action: manipulation; /* Otimiza para touch */
+        -webkit-tap-highlight-color: rgba(0,102,255,0.3);
+    }
+    
+    .pixel-button:active {
+        background: #cce6ff;
+        transform: scale(0.98);
+    }
+}
+
+.controls-grid {
+    display: flex;
+    justify-content: space-between;
+    gap: 15px;
+    margin-top: 12px;
+}
+
+.control-key {
+    width: 60px;
+    height: 60px;
+    border: 2px solid black;
+    background: white;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.8rem;
+    font-weight: bold;
+    cursor: pointer;
+    border-radius: 8px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+.control-key:active {
+    background: #f0f0f0;
+    transform: translateY(2px);
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+/* Estilos para controles mobile */
+.control-key:hover {
+    background: #f8f8f8;
+}
+
+.control-key.active,
+.control-key:active {
+    background: #e0e0e0;
+    transform: translateY(2px);
+    box-shadow: 0 1px 2px rgba(0,0,0,0.2);
+}
+
+/* Melhor feedback tátil para mobile */
+@media (hover: none) and (pointer: coarse) {
+    .control-key {
+        background: #f0f0f0;
+        border: 3px solid black;
+    }
+    
+    .control-key:active {
+        background: #d0d0d0;
+        transform: translateY(3px);
+    }
+}
+
+.control-item span {
+    text-align: center;
+    font-size: 0.8rem;
+    color: #666;
+    text-transform: uppercase;
+    margin-top: 5px;
+}
+
+.game-screen {
+    position: relative;
+    background: white;
+    border: 3px solid black;
+    border-radius: 10px;
+    overflow: hidden;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.2);
+    aspect-ratio: 4/3;
+    height: min(calc(100vh - 150px), 600px);
+    min-height: 240px;
+}
+
+#gameCanvas {
+    display: block;
+    width: 100%;
+    height: 100%;
+    background: white;
+    position: relative;
+    z-index: 1;
+}
+
+.stats {
+    position: absolute;
+    top: 10px;
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 1;
+}
+
+#lap-timer {
+    font-size: 1.2rem;
+    font-weight: bold;
+    color: #0066ff;
+    text-shadow: 1px 1px 0 white;
+}
+
+.in-game-leaderboard {
+    position: absolute;
+    top: 10px;
+    left: 10px;
+    background: rgba(255,255,255,0.9);
+    padding: 8px;
+    border-radius: 5px;
+    font-size: 0.8rem;
+    border: 1px solid black;
+}
+
+.in-game-best-lap {
+    color: #0066ff;
+    font-weight: bold;
+}
+
+.in-game-previous-lap {
+    color: #666;
+}
+
+.in-game-sparkline {
+    margin-top: 5px;
+    font-size: 0.6rem;
+}
+
+.fade-in {
+    animation: fadeIn 0.5s ease-out;
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; transform: translateY(10px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+@media (max-width: 768px) {
+    body {
+        padding: 5px;
+    }
+
+    .pixel-title-box {
+        margin-top: clamp(10px, 3vh, 30px);
+        margin-bottom: 10px;
+    }
+
+    .pixel-title-text {
+        font-size: clamp(1.5rem, 5vw, 2rem);
+    }
+
+    .tagline {
+        font-size: clamp(0.8rem, 2vw, 1rem);
+    }
+
+    /* Cards de tempo mobile */
+    .top-times-row {
+        margin-top: 10px;
+    }
+
+    .top-times {
+        gap: 8px;
+        flex-wrap: wrap;
+    }
+
+    .top-time-box,
+    .sparkline-box {
+        min-width: 100px;
+        height: 70px;
+        padding: 8px 12px;
+        flex: 1;
+    }
+
+    .top-time-label,
+    .sparkline-label {
+        font-size: 0.7rem;
+        margin-bottom: 4px;
+    }
+
+    .top-time-value {
+        font-size: 1.2rem;
+    }
+
+    #sparkline {
+        height: 24px;
+    }
+
+    .game-ui {
+        grid-template-columns: 1fr;
+        gap: 10px;
+        width: 100%;
+        margin: 0;
+    }
+
+    .controls-panel {
+        order: 2;
+        padding: 10px;
+        height: auto;
+    }
+
+    .game-screen {
+        order: 1;
+        height: min(55vh, 400px);
+        aspect-ratio: unset;
+    }
+
+    .player-setup {
+        gap: 5px;
+        margin-bottom: 10px;
+    }
+
+    .player-setup input,
+    .player-setup select {
+        padding: 6px;
+        font-size: 0.9rem;
+    }
+
+    .control-key {
+        width: 50px;
+        height: 50px;
+        font-size: 1.2rem;
+    }
+
+    .mode-description {
+        font-size: 0.65rem;
+        padding: 5px;
+    }
+
+    .pixel-button {
+        padding: 12px;
+        font-size: 0.9rem;
+        margin: 8px 0;
+    }
+}
+
+@media (max-height: 600px) {
+    .pixel-title-box {
+        margin-bottom: 5px;
+    }
+
+    .pixel-title-text {
+        font-size: clamp(1rem, 3vw, 1.5rem);
+        margin-bottom: 0;
+    }
+
+    .tagline {
+        font-size: 0.6rem;
+    }
+
+    #next-track-time {
+        margin-bottom: 5px;
+        font-size: 0.7rem;
+    }
+
+    .game-screen {
+        height: min(calc(100vh - 120px), 400px);
+    }
+}
+
+/* Overlay/Toast apenas sobre o canvas, igual referencia2 */
+.game-screen {
+    position: relative;
+}
+#gameCanvas {
+    display: block;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    background: white;
+    position: relative;
+    z-index: 1;
+}
+/* Popup moderno e clean */
+#gameOverlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.3);
+    display: none;
+    align-items: center;
+    justify-content: center;
+    z-index: 10;
+    pointer-events: none;
+}
+
+#gameOverlay .overlay-content {
+    background: #ffffff;
+    border: 2px solid #333;
+    border-radius: 6px;
+    padding: 20px 24px;
+    text-align: center;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.2);
+    min-width: 200px;
+    max-width: 85vw;
+    font-family: 'Courier New', monospace;
+    animation: popupSlide 0.25s ease-out;
+}
+
+@keyframes popupSlide {
+    0% { opacity: 0; transform: translateY(-15px) scale(0.96); }
+    100% { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+#gameOverlay .overlay-title {
+    font-size: 1.3rem;
+    font-weight: bold;
+    margin-bottom: 10px;
+    color: #222;
+    letter-spacing: 0.5px;
+}
+
+#gameOverlay .overlay-text {
+    color: #555;
+    margin-bottom: 6px;
+    font-size: 0.8rem;
+    line-height: 1.3;
+}
+
+#gameOverlay #overlayTime {
+    font-size: 1rem;
+    font-weight: bold;
+    color: #0066ff;
+    margin-top: 8px;
+    padding: 4px 10px;
+    background: #f0f8ff;
+    border-radius: 3px;
+    border: 1px solid #cce6ff;
+    display: inline-block;
+}
+
+@media (max-width: 480px) {
+    body {
+        padding: 3px;
+    }
+
+    .pixel-title-box {
+        margin-top: 5px;
+        margin-bottom: 8px;
+    }
+
+    .pixel-title-text {
+        font-size: clamp(1.2rem, 6vw, 1.8rem);
+        letter-spacing: 1px;
+    }
+
+    .tagline {
+        font-size: clamp(0.7rem, 3vw, 0.9rem);
+    }
+
+    #next-track-time {
+        font-size: 0.7rem;
+    }
+
+    /* Cards ainda menores para smartphones */
+    .top-times {
+        gap: 4px;
+        flex-direction: row; /* Mantém em linha */
+        justify-content: space-between;
+    }
+
+    .top-times-row {
+        margin-top: 8px;
+    }
+
+    .top-time-box,
+    .sparkline-box {
+        min-width: 90px;
+        height: 60px;
+        padding: 6px 8px;
+        flex: 1;
+        max-width: none;
+    }
+
+    .top-time-label,
+    .sparkline-label {
+        font-size: 0.65rem;
+        margin-bottom: 2px;
+    }
+
+    .top-time-value {
+        font-size: 1.1rem;
+        letter-spacing: 1px;
+    }
+
+    #sparkline {
+        height: 20px;
+        gap: 2px;
+    }
+
+    .sparkline-bar {
+        width: 8px;
+    }
+
+    .game-ui {
+        gap: 8px;
+    }
+
+    .controls-panel {
+        padding: 8px;
+    }
+
+    .game-screen {
+        height: min(45vh, 280px);
+    }
+
+    .player-setup {
+        gap: 4px;
+        margin-bottom: 8px;
+    }
+
+    .player-setup label {
+        font-size: 0.7rem;
+    }
+
+    .player-setup input,
+    .player-setup select {
+        padding: 8px;
+        font-size: 0.85rem;
+    }
+
+    .controls-grid {
+        gap: 10px;
+    }
+
+    .control-key {
+        width: 45px;
+        height: 45px;
+        font-size: 1rem;
+    }
+
+    .control-item span {
+        font-size: 0.7rem;
+    }
+
+    .pixel-button {
+        padding: 10px;
+        font-size: 0.8rem;
+        min-height: 44px;
+    }
+
+    /* Overlay responsivo */
+    #gameOverlay .overlay-content {
+        padding: 16px 20px;
+        min-width: 160px;
+        max-width: 88vw;
+    }
+    
+    #gameOverlay .overlay-title {
+        font-size: 1.1rem;
+    }
+    
+    #gameOverlay .overlay-text {
+        font-size: 0.75rem;
+    }
+    
+    #gameOverlay #overlayTime {
+        font-size: 0.9rem;
+        padding: 3px 8px;
+    }
+}
+
+/* Para telas muito pequenas (smartphones antigos) */
+@media (max-width: 360px) {
+    .pixel-title-text {
+        font-size: clamp(1rem, 7vw, 1.5rem);
+    }
+
+    .top-times {
+        gap: 3px;
+        flex-direction: row; /* Mantém em linha mesmo em telas muito pequenas */
+    }
+
+    .top-time-box,
+    .sparkline-box {
+        min-width: 80px;
+        height: 55px;
+        padding: 4px 6px;
+        flex: 1;
+    }
+
+    .top-time-value {
+        font-size: 1rem;
+    }
+
+    .game-screen {
+        height: min(40vh, 240px);
+    }
+
+    .controls-grid {
+        flex-direction: column;
+        gap: 8px;
+        align-items: center;
+    }
+
+    .control-item {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+
+    .pixel-button {
+        font-size: 0.75rem;
+        padding: 8px;
+    }
+}
+

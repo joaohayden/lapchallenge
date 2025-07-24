@@ -2,6 +2,7 @@
 referencia/
 referencia2/
 projetoreferencia/
+projeto/ # Pasta original (agora arquivos estão na raiz)
 
 # Logs
 *.log
