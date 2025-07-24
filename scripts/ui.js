@@ -140,6 +140,7 @@ class UI {
         
         this.updateModeDescription();
         this.updateGameModeDisplay();
+        this.updateLapCountVisibility(); // Garante visibilidade inicial correta
         
         // Set initial car color when page loads
         setTimeout(() => {
@@ -179,13 +180,23 @@ class UI {
     }
     
     updateLapCountVisibility() {
+        const isVisible = this.gameMode === 'continuous';
+        
         if (this.elements.lapCountBox) {
-            if (this.gameMode === 'continuous') {
-                this.elements.lapCountBox.style.display = 'block';
-            } else {
-                this.elements.lapCountBox.style.display = 'none';
-            }
+            this.elements.lapCountBox.style.display = isVisible ? 'block' : 'none';
         }
+        
+        // Sincronizar com elemento lateral para layout 3 colunas
+        if (this.elements.lapCountBoxSide) {
+            this.elements.lapCountBoxSide.style.display = isVisible ? 'block' : 'none';
+        }
+        
+        console.log('Lap count visibility updated:', { 
+            gameMode: this.gameMode, 
+            isVisible, 
+            lapCountBox: this.elements.lapCountBox?.style.display,
+            lapCountBoxSide: this.elements.lapCountBoxSide?.style.display 
+        });
     }
     
     updateModeDescription() {
@@ -202,6 +213,9 @@ class UI {
         const rightControl = document.getElementById('rightControl');
 
         console.log('Setting up mobile controls:', { leftControl, rightControl });
+
+        // Ajusta o tamanho dos controles baseado no botão "Pressione espaço"
+        this.adjustControlSize();
 
         if (leftControl) {
             console.log('Adding listeners to left control');
@@ -297,6 +311,30 @@ class UI {
             });
         } else {
             console.log('Right control not found!');
+        }
+    }
+
+    adjustControlSize() {
+        // Mede o botão "Pressione espaço" e aplica metade da largura aos controles
+        const startButton = this.elements.startButton;
+        if (startButton) {
+            setTimeout(() => {
+                const buttonWidth = startButton.offsetWidth;
+                const controlWidth = Math.floor(buttonWidth / 2);
+                
+                console.log(`Botão "Pressione espaço": ${buttonWidth}px, Controles: ${controlWidth}px cada`);
+                
+                // Aplica a largura aos controles
+                const leftControl = document.getElementById('leftControl');
+                const rightControl = document.getElementById('rightControl');
+                
+                if (leftControl) {
+                    leftControl.style.width = controlWidth + 'px';
+                }
+                if (rightControl) {
+                    rightControl.style.width = controlWidth + 'px';
+                }
+            }, 100); // Aguarda o DOM carregar completamente
         }
     }
 
