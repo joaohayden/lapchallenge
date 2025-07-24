@@ -142,11 +142,13 @@ class UI {
         this.updateGameModeDisplay();
         this.updateLapCountVisibility(); // Garante visibilidade inicial correta
         
-        // Set initial car color when page loads
+        // Set initial car color and visual style when page loads
         setTimeout(() => {
             if (window.game && window.game.car) {
                 window.game.car.updateTeamColor(this.elements.teamSelect.value);
             }
+            // Apply initial team visual style
+            this.updateTeamSelectStyle(this.elements.teamSelect.value);
         }, 100);
     }
     
@@ -853,6 +855,25 @@ class UI {
         
         // Store the selected team to apply when game initializes
         this.selectedTeam = teamValue;
+        
+        // Apply visual styling to the select element
+        this.updateTeamSelectStyle(teamValue);
+    }
+    
+    // Apply team colors to the select element
+    updateTeamSelectStyle(teamValue) {
+        if (!this.elements.teamSelect) return;
+        
+        // Remove all existing team classes
+        const teamClasses = ['ferrari', 'redbull', 'mercedes', 'mclaren', 'astonmartin', 'alpine', 'williams', 'rb', 'sauber', 'haas'];
+        teamClasses.forEach(team => {
+            this.elements.teamSelect.classList.remove(team);
+        });
+        
+        // Add the new team class
+        if (teamValue) {
+            this.elements.teamSelect.classList.add(teamValue);
+        }
     }
 }
 
