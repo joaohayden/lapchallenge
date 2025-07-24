@@ -815,6 +815,11 @@ body {
         margin: 0;
     }
 
+    /* Esconder coluna lateral de tempos no mobile para evitar duplicação */
+    .times-column {
+        display: none !important;
+    }
+
     .controls-panel {
         order: 2;
         padding: 10px;
