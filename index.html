@@ -38,21 +38,22 @@
         </div>
         
         <div class="game-ui fade-in">
-            <div class="controls-panel">
+            <!-- DIV PADDOCK: Controles e configurações -->
+            <div class="paddock-column">
                 <div class="player-setup">
                     <label for="playerName">NOME DO PILOTO</label>
                     <input type="text" id="playerName" placeholder="Digite seu nome">
                     
                     <label for="teamSelect">CONSTRUTOR</label>
                     <select id="teamSelect">
-                        <option value="ferrari">Drama Vermelho</option>
+                        <option value="ferrari">Decepção Vermelha</option>
                         <option value="redbull">Rebeldes do Energético</option>
                         <option value="mercedes">Viúva do Hamilton</option>
                         <option value="mclaren">Papaya Racing</option>
                         <option value="astonmartin">A Turma do Strollzinho</option>
-                        <option value="alpine">Clube do Renault Esportivo</option>
+                        <option value="alpine">Renault Esportivo</option>
                         <option value="williams">Glórias do Passado</option>
-                        <option value="rb">Touro Genérico</option>
+                        <option value="rb">Touro Reserva</option>
                         <option value="sauber">Quase Audi GP</option>
                         <option value="haas">Plano B Motorsport</option>
                     </select>
@@ -93,8 +94,16 @@
                 </div>
             </div>
 
-            <!-- Nova coluna de tempos para layout 3 colunas -->
-            <div class="times-column">
+            <!-- DIV JOGO: Canvas da corrida -->
+            <div class="game-column">
+                <canvas id="gameCanvas" width="400" height="300"></canvas>
+                <div id="gameOverlay" style="display:none;">
+                    <div id="overlayContent"></div>
+                </div>
+            </div>
+
+            <!-- DIV TELEMETRIA: Tempos e estatísticas -->
+            <div class="telemetria-column">
                 <div class="top-time-box">
                     <div class="top-time-label">Tempo Atual</div>
                     <div class="top-time-value" id="lap-timer-side">0.000s</div>
@@ -110,13 +119,6 @@
                 <div class="top-time-box" id="lap-count-box-side" style="display: none;">
                     <div class="top-time-label">Voltas</div>
                     <div class="top-time-value" id="lap-count-side">0</div>
-                </div>
-            </div>
-
-            <div class="game-screen">
-                <canvas id="gameCanvas" width="400" height="300"></canvas>
-                <div id="gameOverlay" style="display:none;">
-                    <div id="overlayContent"></div>
                 </div>
             </div>
         </div>
