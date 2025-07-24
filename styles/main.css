@@ -370,12 +370,20 @@ body {
     cursor: pointer;
     border-radius: 8px;
     box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    transition: all 0.1s ease; /* Transição rápida */
+    /* Otimizações para mobile */
+    touch-action: manipulation;
+    -webkit-tap-highlight-color: transparent;
+    -webkit-touch-callout: none;
+    -webkit-user-select: none;
+    user-select: none;
 }
 
-.control-key:active {
-    background: #f0f0f0;
-    transform: translateY(2px);
-    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+.control-key:active,
+.control-key.active {
+    background: #e0e0e0;
+    transform: translateY(2px) scale(0.95);
+    box-shadow: 0 1px 2px rgba(0,0,0,0.2);
 }
 
 /* Estilos para controles mobile */
@@ -383,23 +391,24 @@ body {
     background: #f8f8f8;
 }
 
-.control-key.active,
-.control-key:active {
-    background: #e0e0e0;
-    transform: translateY(2px);
-    box-shadow: 0 1px 2px rgba(0,0,0,0.2);
-}
-
 /* Melhor feedback tátil para mobile */
 @media (hover: none) and (pointer: coarse) {
     .control-key {
         background: #f0f0f0;
         border: 3px solid black;
+        width: 70px;
+        height: 70px;
+        font-size: 2rem;
+        /* Remove delay de 300ms */
+        touch-action: manipulation;
+        -webkit-tap-highlight-color: rgba(0,0,0,0.1);
     }
     
-    .control-key:active {
+    .control-key:active,
+    .control-key.active {
         background: #d0d0d0;
-        transform: translateY(3px);
+        transform: translateY(3px) scale(0.9);
+        transition: none; /* Remove transição no mobile para resposta instantânea */
     }
 }
 

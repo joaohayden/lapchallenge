@@ -205,27 +205,46 @@ class UI {
 
         if (leftControl) {
             console.log('Adding listeners to left control');
-            // Touch events for mobile
+            
+            // Touch events for mobile - otimizados para responsividade
             leftControl.addEventListener('touchstart', (e) => {
                 e.preventDefault();
-                console.log('Left touch start');
+                e.stopPropagation();
+                leftControl.classList.add('active');
                 this.simulateKeyPress('ArrowLeft', true);
-            });
+            }, { passive: false });
+            
             leftControl.addEventListener('touchend', (e) => {
                 e.preventDefault();
-                console.log('Left touch end');
+                e.stopPropagation();
+                leftControl.classList.remove('active');
                 this.simulateKeyPress('ArrowLeft', false);
+            }, { passive: false });
+            
+            // Prevenir contexto menu e outros eventos que podem causar delay
+            leftControl.addEventListener('touchcancel', (e) => {
+                e.preventDefault();
+                leftControl.classList.remove('active');
+                this.simulateKeyPress('ArrowLeft', false);
+            }, { passive: false });
+            
+            leftControl.addEventListener('contextmenu', (e) => {
+                e.preventDefault();
             });
             
             // Mouse events for desktop testing
             leftControl.addEventListener('mousedown', (e) => {
                 e.preventDefault();
-                console.log('Left mouse down');
+                leftControl.classList.add('active');
                 this.simulateKeyPress('ArrowLeft', true);
             });
             leftControl.addEventListener('mouseup', (e) => {
                 e.preventDefault();
-                console.log('Left mouse up');
+                leftControl.classList.remove('active');
+                this.simulateKeyPress('ArrowLeft', false);
+            });
+            leftControl.addEventListener('mouseleave', (e) => {
+                leftControl.classList.remove('active');
                 this.simulateKeyPress('ArrowLeft', false);
             });
         } else {
@@ -234,27 +253,46 @@ class UI {
 
         if (rightControl) {
             console.log('Adding listeners to right control');
-            // Touch events for mobile
+            
+            // Touch events for mobile - otimizados para responsividade
             rightControl.addEventListener('touchstart', (e) => {
                 e.preventDefault();
-                console.log('Right touch start');
+                e.stopPropagation();
+                rightControl.classList.add('active');
                 this.simulateKeyPress('ArrowRight', true);
-            });
+            }, { passive: false });
+            
             rightControl.addEventListener('touchend', (e) => {
                 e.preventDefault();
-                console.log('Right touch end');
+                e.stopPropagation();
+                rightControl.classList.remove('active');
                 this.simulateKeyPress('ArrowRight', false);
+            }, { passive: false });
+            
+            // Prevenir contexto menu e outros eventos que podem causar delay
+            rightControl.addEventListener('touchcancel', (e) => {
+                e.preventDefault();
+                rightControl.classList.remove('active');
+                this.simulateKeyPress('ArrowRight', false);
+            }, { passive: false });
+            
+            rightControl.addEventListener('contextmenu', (e) => {
+                e.preventDefault();
             });
             
             // Mouse events for desktop testing
             rightControl.addEventListener('mousedown', (e) => {
                 e.preventDefault();
-                console.log('Right mouse down');
+                rightControl.classList.add('active');
                 this.simulateKeyPress('ArrowRight', true);
             });
             rightControl.addEventListener('mouseup', (e) => {
                 e.preventDefault();
-                console.log('Right mouse up');
+                rightControl.classList.remove('active');
+                this.simulateKeyPress('ArrowRight', false);
+            });
+            rightControl.addEventListener('mouseleave', (e) => {
+                rightControl.classList.remove('active');
                 this.simulateKeyPress('ArrowRight', false);
             });
         } else {
@@ -265,15 +303,23 @@ class UI {
     simulateKeyPress(key, isPressed) {
         if (!window.game) return;
 
-        // Simula input direto no sistema de keys do game
+        // Input direto no sistema de keys do game - mais rápido
         if (key === 'ArrowLeft') {
             window.game.keys.ArrowLeft = isPressed;
+            window.game.keys.KeyA = isPressed; // Backup para tecla A
         } else if (key === 'ArrowRight') {
             window.game.keys.ArrowRight = isPressed;
+            window.game.keys.KeyD = isPressed; // Backup para tecla D
         }
         
-        // Debug log para verificar se está funcionando
-        console.log(`Mobile control: ${key} = ${isPressed}`);
+        // Input direto no carro se disponível (bypass do delay)
+        if (window.game.car && window.game.isRunning) {
+            if (key === 'ArrowLeft') {
+                window.game.car.setInput(isPressed, window.game.keys.ArrowRight || window.game.keys.KeyD);
+            } else if (key === 'ArrowRight') {
+                window.game.car.setInput(window.game.keys.ArrowLeft || window.game.keys.KeyA, isPressed);
+            }
+        }
     }
     
     showLapComplete(lapTime, isBestLap = false) {
