@@ -13,6 +13,10 @@ class Game {
         this.isRunning = false;
         this.isPaused = false;
         this.isWaitingForContinue = false; // For classic mode
+        this.isCrashed = false; // Track if crashed
+        this.isShowingContinuousStats = false; // Track if showing continuous mode stats
+        this.isProcessingSpaceKey = false; // Prevent double processing of space key
+        this.gameJustStarted = 0; // Timestamp when game was started to prevent immediate stop
         this.debug = false;
         
         // Timing
@@ -46,8 +50,8 @@ class Game {
         // Set up resize handler
         this.setupResizeHandler();
         
-        // Initial render
-        this.render();
+        // Start continuous render loop
+        this.startRenderLoop();
         
         // Make game globally accessible for UI callbacks
         window.game = this;
@@ -60,7 +64,12 @@ class Game {
         document.addEventListener('keydown', (e) => {
             // Check if user is typing in an input field
             const activeElement = document.activeElement;
-            const isTyping = activeElement && (activeElement.tagName === 'INPUT' || activeElement.tagName === 'TEXTAREA' || activeElement.tagName === 'SELECT');
+            const isTyping = activeElement && (
+                activeElement.tagName === 'INPUT' || 
+                activeElement.tagName === 'TEXTAREA' || 
+                activeElement.tagName === 'SELECT' ||
+                activeElement.contentEditable === 'true'
+            );
             
             // Only handle game controls if not typing in input fields
             if (!isTyping) {
@@ -73,17 +82,49 @@ class Game {
                 
                 // Handle space key for different contexts
                 if (e.code === 'Space') {
-                    if (this.isWaitingForContinue) {
-                        // Esconde overlay e continua
-                        if (this.ui && typeof this.ui.hideOverlay === 'function') {
-                            this.ui.hideOverlay();
-                        }
-                        this.isWaitingForContinue = false;
-                        this.continueFromLapComplete();
-                    } else if (!this.isRunning && this.ui.gameState === 'menu') {
-                        // Start game from menu
-                        this.ui.startGame();
+                    // Prevent double processing of the same space key event
+                    if (this.isProcessingSpaceKey) {
+                        return;
                     }
+                    
+                    // Set flag immediately to prevent any re-processing
+                    this.isProcessingSpaceKey = true;
+                    
+                    // Add a small delay to prevent synchronous re-processing
+                    setTimeout(() => {
+                        if (this.isWaitingForContinue) {
+                            // Esconde overlay e continua
+                            if (this.ui && typeof this.ui.hideOverlay === 'function') {
+                                this.ui.hideOverlay();
+                            }
+                            this.isWaitingForContinue = false;
+                            
+                            // Se estiver no estado de crash, reiniciar a volta
+                            if (this.isCrashed) {
+                                this.isCrashed = false; // Reset flag
+                                this.restartAfterCrash();
+                            } else {
+                                // Caso contrário, continuar para próxima volta
+                                this.continueFromLapComplete();
+                            }
+                        } else if (!this.isRunning) {
+                            // Start game from menu (prioridade para iniciar o jogo)
+                            this.ui.startGame();
+                        } else if (this.isRunning && this.ui.getGameMode && this.ui.getGameMode() === 'continuous') {
+                            // Check if game just started (prevent immediate stop within 500ms)
+                            const timeSinceStart = Date.now() - this.gameJustStarted;
+                            
+                            if (timeSinceStart >= 500) {
+                                // Stop continuous mode and show stats (só quando jogo já está rodando)
+                                this.stopContinuousMode();
+                            }
+                        }
+                        
+                        // Reset flag after processing
+                        setTimeout(() => {
+                            this.isProcessingSpaceKey = false;
+                        }, 50);
+                    }, 10);
                 }
                 
                 // Debug toggle
@@ -163,42 +204,78 @@ class Game {
     }
     
     setupResizeHandler() {
-        window.addEventListener('resize', () => {
+        // Handler para mudanças de viewport
+        const handleViewportChange = () => {
             this.resizeCanvas();
-        });
+            // Forçar re-render após mudanças
+            this.render();
+        };
         
+        window.addEventListener('resize', handleViewportChange);
+        window.addEventListener('scroll', handleViewportChange);
+        window.addEventListener('orientationchange', handleViewportChange);
+        
+        // Detectar zoom usando visualViewport se disponível
+        if ('visualViewport' in window) {
+            window.visualViewport.addEventListener('resize', handleViewportChange);
+        }
+        
+        // Initial setup
         this.resizeCanvas();
     }
     
+    startRenderLoop() {
+        // Continuous render loop to prevent canvas going blank
+        const renderLoop = () => {
+            // Sempre renderizar, mesmo quando o jogo não está rodando
+            this.render();
+            requestAnimationFrame(renderLoop);
+        };
+        requestAnimationFrame(renderLoop);
+    }
+    
     resizeCanvas() {
+        // Verificar se o canvas ainda existe
+        if (!this.canvas || !this.canvas.parentElement) {
+            return;
+        }
+        
         // Keep canvas responsive and fill container completely
         const container = this.canvas.parentElement;
         const containerWidth = container.clientWidth;
         const containerHeight = container.clientHeight;
         
+        // Verificar se as dimensões são válidas
+        if (containerWidth <= 0 || containerHeight <= 0) {
+            return;
+        }
+        
         // Make canvas fill the container completely
         this.canvas.style.width = '100%';
         this.canvas.style.height = '100%';
         
-        // Update canvas internal dimensions to match container
-        // Maintain original aspect ratio for game logic
-        const maxWidth = Math.min(containerWidth, 400);
-        const aspectRatio = 300 / 400; // Original canvas ratio
+        // Manter dimensões internas fixas para consistência do jogo
+        // O canvas sempre terá 400x300 internamente
+        this.canvas.width = 400;
+        this.canvas.height = 300;
         
-        // Set internal canvas dimensions
-        this.canvas.width = maxWidth;
-        this.canvas.height = maxWidth * aspectRatio;
+        // Recriar contexto se necessário
+        if (!this.ctx || this.ctx.canvas !== this.canvas) {
+            this.ctx = this.canvas.getContext('2d');
+        }
+        
+        // Garantir que as configurações do contexto estejam corretas
+        this.ctx.imageSmoothingEnabled = false;
     }
     
     start() {
         if (this.isRunning) return;
         
-        console.log('Starting game...');
-        
         this.isRunning = true;
         this.isPaused = false;
         this.gameStartTime = Date.now();
         this.currentLapStartTime = Date.now();
+        this.gameJustStarted = Date.now(); // Mark when game started
         
         // Reset car
         this.car.reset();
@@ -222,8 +299,25 @@ class Game {
             this.isWaitingForContinue = false;
             this.isPaused = false;
             
-            // Reset car to start position for next lap
-            this.car.reset();
+            // Verificar se estamos voltando das estatísticas contínuas
+            if (this.isShowingContinuousStats) {
+                this.isShowingContinuousStats = false;
+                
+                // Para modo contínuo, reiniciar completamente o jogo
+                this.resetGame();
+                return;
+            }
+            
+            // Verificar o modo de jogo para volta normal
+            const gameMode = this.ui.getGameMode ? this.ui.getGameMode() : 'classic';
+            
+            if (gameMode === 'classic') {
+                // No modo clássico, resetar completamente o carro
+                this.car.reset();
+            } else {
+                // No modo contínuo, só resetar a posição mas manter a velocidade baixa
+                this.car.resetPosition();
+            }
             
             // Hide ambos overlays
             if (this.ui && typeof this.ui.hideLapComplete === 'function') {
@@ -238,10 +332,66 @@ class Game {
         }
     }
     
+    restartAfterCrash() {
+        console.log('Restarting after crash...');
+        
+        // Reset crash state
+        this.isWaitingForContinue = false;
+        this.isCrashed = false;
+        this.isPaused = false;
+        
+        // Hide overlay
+        if (this.ui && typeof this.ui.hideOverlay === 'function') {
+            this.ui.hideOverlay();
+        }
+        
+        // Reset car to start position
+        this.car.reset();
+        
+        // Start game properly (same logic as start())
+        this.isRunning = true;
+        this.gameStartTime = Date.now();
+        this.currentLapStartTime = Date.now();
+        
+        // Start car lap
+        this.car.startLap();
+        
+        // Reset timer
+        this.ui.resetTimer();
+        
+        // Start game loop
+        this.gameLoop();
+    }
+    
     pause() {
         this.isPaused = !this.isPaused;
         if (!this.isPaused) {
             this.lastTime = performance.now();
+        }
+    }
+    
+    stopContinuousMode() {
+        if (this.isRunning && this.ui.getGameMode && this.ui.getGameMode() === 'continuous') {
+            this.isRunning = false;
+            this.isPaused = false;
+            
+            // Marcar que estamos no estado de estatísticas contínuas
+            this.isShowingContinuousStats = true;
+            
+            // Mostrar overlay com estatísticas do modo contínuo
+            const stats = this.getStats();
+            const lapCount = this.ui.lapCount || 0;
+            const bestLap = this.ui.bestTime || 0;
+            
+            // Exibir overlay personalizado para modo contínuo
+            if (this.ui && typeof this.ui.showContinuousStats === 'function') {
+                this.ui.showContinuousStats(lapCount, bestLap, this.ui.lapTimes);
+            } else if (this.ui && typeof this.ui.showOverlay === 'function') {
+                // Fallback para overlay padrão
+                this.ui.showOverlay('continuous-complete', { lapCount, bestLap });
+            }
+            
+            this.isWaitingForContinue = true;
         }
     }
     
@@ -251,6 +401,7 @@ class Game {
         this.isRunning = false;
         this.isPaused = false;
         this.isWaitingForContinue = false;
+        this.isCrashed = false; // Reset crash flag
         
         // Reset car
         this.car.reset();
@@ -304,6 +455,7 @@ class Game {
             if (!this.track.isOnTrack(this.car.x, this.car.y)) {
                 this.isRunning = false;
                 this.isPaused = false;
+                this.isCrashed = true; // Marcar que crashou
                 // Mostra overlay fixo
                 if (this.ui && typeof this.ui.showOverlay === 'function') {
                     this.ui.showOverlay('crash', this.ui.currentTime);
@@ -321,14 +473,25 @@ class Game {
     }
     
     render() {
+        // Verificar se o contexto está válido
+        if (!this.ctx || !this.canvas) {
+            console.warn('Canvas context lost, attempting to restore...');
+            this.resizeCanvas();
+            return;
+        }
+        
         // Clear canvas
         this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
         
         // Render track
-        this.track.render();
+        if (this.track) {
+            this.track.render();
+        }
         
         // Render car
-        this.car.render();
+        if (this.car) {
+            this.car.render();
+        }
         
         // Debug rendering
         if (this.debug) {

@@ -14,12 +14,13 @@ class ShareManager {
         if (!shareButton) {
             shareButton = document.createElement('button');
             shareButton.id = 'shareButton';
-            shareButton.className = 'pixel-button';
+            shareButton.className = 'pixel-button lap-drop-button';
             shareButton.innerHTML = '<span class="share-icon">⚡</span> LAP DROP';
             
-            const controlsPanel = document.querySelector('.controls-panel');
-            if (controlsPanel) {
-                controlsPanel.appendChild(shareButton);
+            // Insert in times column instead of controls panel
+            const timesColumn = document.querySelector('.times-column');
+            if (timesColumn) {
+                timesColumn.appendChild(shareButton);
             }
         }
         

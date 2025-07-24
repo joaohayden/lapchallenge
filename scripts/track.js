@@ -90,7 +90,7 @@ class Track {
         this.ctx.fillRect(0, 0, this.width, this.height);
         
         // Draw track background (grass)
-        this.ctx.fillStyle = '#004400';
+        this.ctx.fillStyle = '#f5f5f5';
         this.ctx.fillRect(0, 0, this.width, this.height);
         
         // Draw track surface

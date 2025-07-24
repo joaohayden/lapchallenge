@@ -70,13 +70,11 @@ class UI {
                 if (window.game && window.game.isWaitingForContinue) {
                     // Continue from lap complete in classic mode
                     window.game.continueFromLapComplete();
-                } else if (this.gameState === 'playing' && this.gameMode === 'continuous') {
-                    // Stop game in continuous mode
-                    this.stopGame();
                 } else if (this.gameState === 'menu') {
                     // Start game from menu
                     this.startGame();
                 }
+                // Nota: Lógica do modo contínuo é tratada no game.js
             }
         });
         
@@ -326,6 +324,7 @@ class UI {
     }
     
     showOverlay(type, lapTime) {
+        console.log('showOverlay called with type:', type);
         const overlay = document.getElementById('gameOverlay');
         const content = document.getElementById('overlayContent');
         let html = '';
@@ -342,6 +341,46 @@ class UI {
         content.innerHTML = html;
         overlay.style.display = 'flex';
         overlay.style.visibility = 'visible'; // Garante visibilidade quando mostra
+    }
+    
+    showContinuousStats(lapCount, bestLap, lapTimes) {
+        console.log('showContinuousStats called with lapCount:', lapCount);
+        const overlay = document.getElementById('gameOverlay');
+        const content = document.getElementById('overlayContent');
+        
+        let html = `<div class="continuous-stats">`;
+        html += `<div class="stats-title">🏁 SESSÃO CONTÍNUA FINALIZADA</div>`;
+        html += `<div class="stats-grid">`;
+        html += `<div class="stat-item">`;
+        html += `<div class="stat-label">VOLTAS COMPLETADAS</div>`;
+        html += `<div class="stat-value">${lapCount}</div>`;
+        html += `</div>`;
+        
+        if (bestLap > 0) {
+            html += `<div class="stat-item">`;
+            html += `<div class="stat-label">MELHOR VOLTA</div>`;
+            html += `<div class="stat-value">${TimeUtils.formatTime(bestLap)}</div>`;
+            html += `</div>`;
+        }
+        
+        html += `</div>`;
+        
+        if (lapTimes && lapTimes.length > 0) {
+            html += `<div class="recent-laps">`;
+            html += `<div class="recent-laps-title">ÚLTIMAS VOLTAS:</div>`;
+            const recentLaps = lapTimes.slice(-10).reverse();
+            recentLaps.forEach((time, index) => {
+                html += `<div class="recent-lap">${recentLaps.length - index}. ${TimeUtils.formatTime(time)}</div>`;
+            });
+            html += `</div>`;
+        }
+        
+        html += `<div class="continue-instruction">Pressione espaço para reiniciar</div>`;
+        html += `</div>`;
+        
+        content.innerHTML = html;
+        overlay.style.display = 'flex';
+        overlay.style.visibility = 'visible';
     }
     hideOverlay() {
         console.log('hideOverlay called');
@@ -436,6 +475,11 @@ class UI {
     updateTimer(milliseconds) {
         this.currentTime = milliseconds;
         this.updateLapDisplay(); // Usa updateLapDisplay em vez de atualizar diretamente
+    }
+    
+    resetTimer() {
+        this.currentTime = 0;
+        this.updateLapDisplay();
     }
     
     onLapCompleted(lapTime) {

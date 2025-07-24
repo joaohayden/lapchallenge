@@ -159,6 +159,18 @@ class Car {
         this.lapCompleted = false;
     }
     
+    // Reset only position (for continuous mode)
+    resetPosition() {
+        this.x = this.track.startLine.x;
+        this.y = this.track.startLine.y;
+        this.angle = this.track.startLine.angle;
+        // Reset velocidade para zero no modo contínuo também
+        this.speed = 0;
+        this.velocity = { x: 0, y: 0 };
+        this.currentLapStartTime = null;
+        this.lapCompleted = false;
+    }
+    
     // Start a new lap
     startLap() {
         this.currentLapStartTime = Date.now();
