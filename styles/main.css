@@ -481,6 +481,139 @@ body {
     to { opacity: 1; transform: translateY(0); }
 }
 
+/* Media query para notebooks e telas médias (14-15 polegadas) */
+@media (max-width: 1366px) and (min-width: 769px) {
+    .game-container {
+        max-width: 95vw;
+        padding: 0 10px;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        height: 100vh;
+    }
+    
+    .pixel-title-box {
+        margin-top: clamp(10px, 2vh, 20px);
+        margin-bottom: 15px;
+    }
+    
+    /* Esconder cards do topo */
+    .top-times-row {
+        display: none;
+    }
+    
+    .game-ui {
+        display: grid;
+        grid-template-columns: 220px 1fr 160px;
+        grid-template-areas: 
+            "controls canvas times";
+        gap: 15px;
+        max-width: 100%;
+        align-items: stretch;
+        justify-content: center;
+        width: 100%;
+        height: min(calc(100vh - 180px), 500px);
+    }
+    
+    .controls-panel {
+        grid-area: controls;
+        padding: 12px;
+        height: 100%;
+        display: flex;
+        flex-direction: column;
+        justify-content: space-between;
+    }
+    
+    .game-screen {
+        grid-area: canvas;
+        height: 100%;
+        width: 100%;
+        min-height: 494px;
+    }
+    
+    /* Nova coluna de tempos vertical */
+    .times-column {
+        grid-area: times;
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+        height: 100%;
+        justify-content: flex-start;
+        padding-top: 10px;
+    }
+    
+    /* Estilizar cards de tempo para a coluna */
+    .times-column .top-time-box,
+    .times-column .sparkline-box {
+        min-width: auto;
+        width: 100%;
+        height: 75px;
+        padding: 8px 10px;
+        font-size: 0.8rem;
+        flex-shrink: 0;
+    }
+    
+    .times-column .top-time-label,
+    .times-column .sparkline-label {
+        font-size: 0.65rem;
+        margin-bottom: 4px;
+    }
+    
+    .times-column .top-time-value {
+        font-size: 1.2rem;
+        letter-spacing: 1px;
+    }
+    
+    .times-column #sparkline-side {
+        height: 22px;
+        gap: 2px;
+    }
+    
+    .times-column .sparkline-bar {
+        width: 8px;
+    }
+    
+    /* Ajustar controles para mesma altura do canvas */
+    .player-setup {
+        gap: 8px;
+        margin-bottom: 15px;
+        flex-grow: 1;
+    }
+    
+    .player-setup label {
+        font-size: 0.7rem;
+    }
+    
+    .player-setup input,
+    .player-setup select {
+        padding: 6px;
+        font-size: 0.8rem;
+    }
+    
+    .pixel-button {
+        padding: 8px;
+        font-size: 0.8rem;
+        margin: 8px 0;
+    }
+    
+    .controls-grid {
+        gap: 10px;
+        margin-top: auto;
+        flex-shrink: 0;
+    }
+    
+    .control-key {
+        width: 50px;
+        height: 50px;
+        font-size: 1.5rem;
+    }
+    
+    .control-item span {
+        font-size: 0.7rem;
+    }
+}
+
 @media (max-width: 768px) {
     body {
         padding: 5px;

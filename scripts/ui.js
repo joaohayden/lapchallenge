@@ -12,6 +12,12 @@ class UI {
             bestLap: document.getElementById('best-lap-timer'),
             lapCount: document.getElementById('lap-count'),
             lapCountBox: document.getElementById('lap-count-box'),
+            // Elementos da coluna lateral para layout 3 colunas
+            lapTimerSide: document.getElementById('lap-timer-side'),
+            bestLapSide: document.getElementById('best-lap-timer-side'),
+            lapCountSide: document.getElementById('lap-count-side'),
+            lapCountBoxSide: document.getElementById('lap-count-box-side'),
+            sparklineSide: document.getElementById('sparkline-side'),
             gameContainer: document.querySelector('.game-container'),
             sparkline: document.getElementById('sparkline'),
         };
@@ -472,6 +478,10 @@ class UI {
             this.lapCount++;
             if (this.elements.lapCount) {
                 this.elements.lapCount.textContent = this.lapCount;
+                // Sincronizar com elemento lateral
+                if (this.elements.lapCountSide) {
+                    this.elements.lapCountSide.textContent = this.lapCount;
+                }
             }
         }
     }
@@ -479,22 +489,43 @@ class UI {
     updateLapDisplay() {
         if (this.bestTime) {
             this.elements.bestLap.textContent = TimeUtils.formatTimeShort(this.bestTime);
+            // Sincronizar com elemento lateral
+            if (this.elements.bestLapSide) {
+                this.elements.bestLapSide.textContent = TimeUtils.formatTimeShort(this.bestTime);
+            }
         }
         
         // Se não está correndo e temos um tempo de volta completada, mostra ele
         // Senão mostra o tempo atual
         if (this.elements.lapTimer) {
+            let timeToShow;
             if (!window.game || !window.game.isRunning || window.game.isWaitingForContinue) {
                 // Mostra o último tempo da volta quando parado/esperando
                 if (this.lastCompletedLapTime !== null) {
-                    this.elements.lapTimer.textContent = TimeUtils.formatTimeShort(this.lastCompletedLapTime);
+                    timeToShow = TimeUtils.formatTimeShort(this.lastCompletedLapTime);
                 } else {
-                    this.elements.lapTimer.textContent = TimeUtils.formatTimeShort(this.currentTime);
+                    timeToShow = TimeUtils.formatTimeShort(this.currentTime);
                 }
             } else {
                 // Mostra o tempo atual quando correndo
-                this.elements.lapTimer.textContent = TimeUtils.formatTimeShort(this.currentTime);
+                timeToShow = TimeUtils.formatTimeShort(this.currentTime);
             }
+            
+            this.elements.lapTimer.textContent = timeToShow;
+            // Sincronizar com elemento lateral
+            if (this.elements.lapTimerSide) {
+                this.elements.lapTimerSide.textContent = timeToShow;
+            }
+        }
+        
+        // Sincronizar contador de voltas
+        if (this.elements.lapCount && this.elements.lapCountSide) {
+            this.elements.lapCountSide.textContent = this.elements.lapCount.textContent;
+        }
+        
+        // Sincronizar visibilidade do box de voltas
+        if (this.elements.lapCountBox && this.elements.lapCountBoxSide) {
+            this.elements.lapCountBoxSide.style.display = this.elements.lapCountBox.style.display;
         }
     }
     
@@ -560,6 +591,11 @@ class UI {
             bar.className = 'sparkline-bar empty';
             bar.style.height = '4px';
             this.elements.sparkline.appendChild(bar);
+        }
+        
+        // Sincronizar com sparkline lateral
+        if (this.elements.sparklineSide) {
+            this.elements.sparklineSide.innerHTML = this.elements.sparkline.innerHTML;
         }
     }
 

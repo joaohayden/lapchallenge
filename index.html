@@ -84,6 +84,26 @@
                 </div>
             </div>
 
+            <!-- Nova coluna de tempos para layout 3 colunas -->
+            <div class="times-column">
+                <div class="top-time-box">
+                    <div class="top-time-label">Tempo Atual</div>
+                    <div class="top-time-value" id="lap-timer-side">0.000s</div>
+                </div>
+                <div class="top-time-box">
+                    <div class="top-time-label">Melhor Volta</div>
+                    <div class="top-time-value" id="best-lap-timer-side">--:---</div>
+                </div>
+                <div class="top-time-box" id="lap-count-box-side" style="display: none;">
+                    <div class="top-time-label">Voltas</div>
+                    <div class="top-time-value" id="lap-count-side">0</div>
+                </div>
+                <div class="sparkline-box">
+                    <div class="sparkline-label">Últimas voltas</div>
+                    <div id="sparkline-side"></div>
+                </div>
+            </div>
+
             <div class="game-screen">
                 <canvas id="gameCanvas" width="400" height="300"></canvas>
                 <div id="gameOverlay" style="display:none;">
