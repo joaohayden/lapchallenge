@@ -26,8 +26,7 @@ class UI {
         this.currentTime = 0;
         this.lastCompletedLapTime = null; // Para manter o último tempo da volta
         this.lapTimes = [];
-        this.bestTimeClassic = null; // Melhor tempo no modo clássico
-        this.bestTimeContinuous = null; // Melhor tempo no modo contínuo
+        this.bestTime = null;
         this.previousTime = null;
         this.gameMode = 'classic'; // 'classic' ou 'continuous'
         this.lapCount = 0; // Contador de voltas para modo contínuo
@@ -69,9 +68,6 @@ class UI {
             if (e.code === 'Space') {
                 e.preventDefault();
                 if (window.game && window.game.isWaitingForContinue) {
-                    // Clear visual elements when continuing
-                    this.stopTimerBlinking();
-                    this.hideToast();
                     // Continue from lap complete in classic mode
                     window.game.continueFromLapComplete();
                 } else if (this.gameState === 'menu') {
@@ -98,7 +94,6 @@ class UI {
         this.elements.gameModeSelect.addEventListener('change', (e) => {
             this.gameMode = e.target.value;
             this.updateModeDescription();
-            this.updateLapDisplay(); // Atualiza o display para mostrar o novo modo
             this.savePlayerData();
             // Reinicia o jogo automaticamente quando o modo for alterado
             if (this.gameState === 'playing') {
@@ -165,7 +160,6 @@ class UI {
         this.updateModeDescription();
         this.updateGameModeDisplay();
         this.updateLapCountVisibility();
-        this.updateLapDisplay(); // Atualiza o display para mostrar o novo modo
         this.savePlayerData();
         
         // Reset lap count when switching modes
@@ -210,8 +204,8 @@ class UI {
     updateModeDescription() {
         const mode = this.gameMode;
         const descriptions = {
-            classic: 'Faça uma volta rápida e no menor tempo possível - Não colida nos limites de pista',
-            continuous: 'Sem parar! Bater nos limites da pista reduz sua velocidade - resista o máximo que puder'
+            classic: 'Clássico: Dê uma volta rápida na pista e faça o menor tempo possível sem bater nos limites da pista. O jogo pausa quando você completa uma volta ou bate.',
+            continuous: 'Contínuo: Voltas sem parar! Bater nos limites da pista reduz sua velocidade mas o jogo continua. Veja quantas voltas consegue completar sem parar.'
         };
         this.elements.modeDescription.textContent = descriptions[mode] || descriptions.classic;
     }
@@ -323,28 +317,23 @@ class UI {
     }
 
     adjustControlSize() {
-        // Mede o botão "Pressione espaço" e considera o gap entre os controles
+        // Mede o botão "Pressione espaço" e aplica metade da largura aos controles
         const startButton = this.elements.startButton;
         if (startButton) {
             setTimeout(() => {
                 const buttonWidth = startButton.offsetWidth;
+                const controlWidth = Math.floor(buttonWidth / 2);
                 
-                // Obter o gap entre os controles do CSS (normalmente 10px)
+                console.log(`Botão "Pressione espaço": ${buttonWidth}px, Controles: ${controlWidth}px cada`);
+                
+                // Aplica a largura aos controles
                 const leftControl = document.getElementById('leftControl');
                 const rightControl = document.getElementById('rightControl');
                 
-                if (leftControl && rightControl) {
-                    // Calcular o gap atual entre os controles
-                    const containerStyle = window.getComputedStyle(leftControl.parentElement);
-                    const gap = parseFloat(containerStyle.gap) || 10; // fallback para 10px se gap não estiver definido
-                    
-                    // Largura de cada controle = (largura total - gap) / 2
-                    const controlWidth = Math.floor((buttonWidth - gap) / 2);
-                    
-                    console.log(`Botão "Pressione espaço": ${buttonWidth}px, Gap: ${gap}px, Controles: ${controlWidth}px cada`);
-                    
-                    // Aplica a largura aos controles
+                if (leftControl) {
                     leftControl.style.width = controlWidth + 'px';
+                }
+                if (rightControl) {
                     rightControl.style.width = controlWidth + 'px';
                 }
             }, 100); // Aguarda o DOM carregar completamente
@@ -371,6 +360,53 @@ class UI {
                 window.game.car.setInput(window.game.keys.ArrowLeft || window.game.keys.KeyA, isPressed);
             }
         }
+    }
+    
+    showLapComplete(lapTime, isBestLap = false) {
+        // Only show lap complete overlay in classic mode
+        const gameMode = this.getGameMode();
+        if (gameMode !== 'classic') return;
+        // Usa overlay fixo
+        const overlay = document.getElementById('gameOverlay');
+        const content = document.getElementById('overlayContent');
+        let html = '';
+        if (isBestLap) {
+            html += '<div class="best-lap-indicator">🏆 NOVO RECORDE PESSOAL! 🏆</div>';
+        }
+        html += `<div class="lap-complete-message">VOLTA COMPLETA</div>`;
+        html += `<div class="lap-time-display">${TimeUtils.formatTime(lapTime)}</div>`;
+        html += `<div class="continue-instruction">Pressione espaço para continuar</div>`;
+        content.innerHTML = html;
+        overlay.style.display = 'flex';
+        overlay.style.visibility = 'visible'; // Garante visibilidade quando mostra
+    }
+    hideLapComplete() {
+        console.log('hideLapComplete called');
+        const overlay = document.getElementById('gameOverlay');
+        if (overlay) {
+            overlay.style.display = 'none';
+            overlay.style.visibility = 'hidden'; // Adiciona mais uma camada de ocultação
+            console.log('Overlay hidden');
+        }
+    }
+    showGameOver(crashed, lapTime) {
+        // Usa overlay fixo
+        const overlay = document.getElementById('gameOverlay');
+        const content = document.getElementById('overlayContent');
+        let html = '';
+        if (crashed) {
+            html += `<div class="lap-complete-message">Você bateu!</div>`;
+            html += `<div class="lap-time-display">${TimeUtils.formatTime(lapTime)}</div>`;
+            html += `<div class="continue-instruction">Pressione espaço para tentar novamente</div>`;
+        } else {
+            html += `<div class="best-lap-indicator">🏆 NOVO RECORDE PESSOAL! 🏆</div>`;
+            html += `<div class="lap-complete-message">VOLTA COMPLETA</div>`;
+            html += `<div class="lap-time-display">${TimeUtils.formatTime(lapTime)}</div>`;
+            html += `<div class="continue-instruction">Pressione espaço para continuar</div>`;
+        }
+        content.innerHTML = html;
+        overlay.style.display = 'flex';
+        overlay.style.visibility = 'visible'; // Garante visibilidade quando mostra
     }
     
     showOverlay(type, lapTime) {
@@ -484,7 +520,6 @@ class UI {
             content.style.opacity = '1';
         }, 10);
     }
-    
     hideOverlay() {
         console.log('hideOverlay called');
         const overlay = document.getElementById('gameOverlay');
@@ -497,18 +532,6 @@ class UI {
     
     getGameMode() {
         return this.gameMode || 'classic';
-    }
-    
-    getCurrentBestTime() {
-        return this.gameMode === 'classic' ? this.bestTimeClassic : this.bestTimeContinuous;
-    }
-    
-    setCurrentBestTime(time) {
-        if (this.gameMode === 'classic') {
-            this.bestTimeClassic = time;
-        } else {
-            this.bestTimeContinuous = time;
-        }
     }
     
     startGame() {
@@ -526,12 +549,7 @@ class UI {
         
         // Esconde qualquer overlay que possa estar visível
         this.hideOverlay();
-        
-        // Para o piscar amarelo do timer se estiver ativo
-        this.stopTimerBlinking();
-        
-        // Esconde o toast se estiver visível
-        this.hideToast();
+        this.hideLapComplete();
         
         // Configure lap count visibility and reset
         this.updateLapCountVisibility();
@@ -582,9 +600,8 @@ class UI {
         if (this.lapCount > 0) {
             html += `<div class="lap-time-display">Voltas completadas: ${this.lapCount}</div>`;
         }
-        const currentBest = this.getCurrentBestTime();
-        if (currentBest) {
-            html += `<div class="continue-instruction">Melhor tempo: ${TimeUtils.formatTimeShort(currentBest)}</div>`;
+        if (this.bestTime) {
+            html += `<div class="continue-instruction">Melhor tempo: ${TimeUtils.formatTimeShort(this.bestTime)}</div>`;
         }
         html += `<div class="continue-instruction">Pressione espaço para jogar novamente</div>`;
         
@@ -608,14 +625,13 @@ class UI {
         this.previousTime = lapTime;
         this.lastCompletedLapTime = lapTime; // Armazena o tempo da volta completada
         
-        // Check if it's a new best time for current mode
-        const currentBest = this.getCurrentBestTime();
-        const isBestLap = !currentBest || lapTime < currentBest;
+        // Check if it's a new best time
+        const isBestLap = !this.bestTime || lapTime < this.bestTime;
         
-        // Update best time for current mode
+        // Update best time
         if (isBestLap) {
-            this.setCurrentBestTime(lapTime);
-            this.saveBestTimes();
+            this.bestTime = lapTime;
+            this.saveBestTime();
             
             // Show message only in continuous mode
             if (this.getGameMode() === 'continuous') {
@@ -632,27 +648,12 @@ class UI {
         // Handle mode-specific behavior
         const gameMode = this.getGameMode();
         if (gameMode === 'classic') {
-            if (isBestLap) {
-                // Show full overlay for new record
-                this.showOverlay('bestlap', lapTime);
-                // Start green blinking animation on timer for record
-                this.startTimerBlinking('green');
-                // Ensure game waits for user input even for records
-                if (window.game) {
-                    window.game.isWaitingForContinue = true;
-                    window.game.isPaused = true; // Actually pause for records too
-                    window.game.isRunning = false; // Stop the game completely
-                }
-            } else {
-                // Just show toast and let timer blink yellow - don't pause
-                this.showToast('Pressione ESPAÇO para tentar um menor tempo', 'warning', -1); // -1 = permanent
-                // Start yellow blinking animation on timer
-                this.startTimerBlinking('yellow');
-                // Set flag for game to know it's waiting for continue
-                if (window.game) {
-                    window.game.isWaitingForContinue = true;
-                    window.game.isPaused = false; // Don't actually pause, just wait for input
-                }
+            // Show lap complete overlay and pause game
+            this.showLapComplete(lapTime, isBestLap);
+            
+            // Pause the game
+            if (window.game && window.game.pauseForLapComplete) {
+                window.game.pauseForLapComplete();
             }
         } else if (gameMode === 'continuous') {
             // Increment lap count in continuous mode
@@ -668,33 +669,11 @@ class UI {
     }
     
     updateLapDisplay() {
-        const currentBest = this.getCurrentBestTime();
-        
-        // Atualiza o label do card para indicar o modo atual
-        const bestLapLabel = document.querySelector('.top-time-box:nth-child(2) .top-time-label');
-        if (bestLapLabel) {
-            const modeText = this.gameMode === 'classic' ? 'Clássico' : 'Contínuo';
-            bestLapLabel.textContent = `Melhor Volta (${modeText})`;
-        }
-        
-        // Sincroniza com elemento lateral
-        const bestLapLabelSide = document.querySelector('.best-lap-side .top-time-label');
-        if (bestLapLabelSide) {
-            const modeText = this.gameMode === 'classic' ? 'Clássico' : 'Contínuo';
-            bestLapLabelSide.textContent = `Melhor Volta (${modeText})`;
-        }
-        
-        if (currentBest) {
-            this.elements.bestLap.textContent = TimeUtils.formatTimeShort(currentBest);
+        if (this.bestTime) {
+            this.elements.bestLap.textContent = TimeUtils.formatTimeShort(this.bestTime);
             // Sincronizar com elemento lateral
             if (this.elements.bestLapSide) {
-                this.elements.bestLapSide.textContent = TimeUtils.formatTimeShort(currentBest);
-            }
-        } else {
-            // Se não há melhor tempo para o modo atual, mostra --:---
-            this.elements.bestLap.textContent = '--:---';
-            if (this.elements.bestLapSide) {
-                this.elements.bestLapSide.textContent = '--:---';
+                this.elements.bestLapSide.textContent = TimeUtils.formatTimeShort(this.bestTime);
             }
         }
         
@@ -712,8 +691,6 @@ class UI {
             } else {
                 // Mostra o tempo atual quando correndo
                 timeToShow = TimeUtils.formatTimeShort(this.currentTime);
-                // Para o piscar se estiver correndo
-                this.stopTimerBlinking();
             }
             
             this.elements.lapTimer.textContent = timeToShow;
@@ -834,97 +811,12 @@ class UI {
         }, 2000);
     }
     
-    showToast(text, type = 'info', duration = 3000) {
-        // Remove any existing toast first
-        const existingToast = document.querySelector('.game-toast');
-        if (existingToast) {
-            existingToast.remove();
-        }
-        
-        // Create toast element
-        const toast = document.createElement('div');
-        toast.className = `game-toast ${type}`;
-        toast.textContent = text;
-        toast.style.cssText = `
-            position: fixed;
-            bottom: 30px;
-            left: 50%;
-            transform: translateX(-50%);
-            background: rgba(255, 193, 7, 0.95);
-            color: #333;
-            padding: 12px 20px;
-            border-radius: 8px;
-            font-family: 'Courier New', monospace;
-            font-size: 0.9rem;
-            font-weight: 600;
-            z-index: 1001;
-            border: 2px solid #ffc107;
-            box-shadow: 0 4px 12px rgba(255, 193, 7, 0.3);
-            animation: toastSlideIn 0.3s ease;
-        `;
-        
-        document.body.appendChild(toast);
-        
-        // Only auto-remove if duration is provided and not permanent (-1)
-        if (duration > 0) {
-            setTimeout(() => {
-                if (toast.parentNode) {
-                    toast.style.animation = 'toastSlideOut 0.3s ease';
-                    setTimeout(() => {
-                        if (toast.parentNode) {
-                            toast.parentNode.removeChild(toast);
-                        }
-                    }, 300);
-                }
-            }, duration);
-        }
-    }
-    
-    hideToast() {
-        const toast = document.querySelector('.game-toast');
-        if (toast) {
-            toast.style.animation = 'toastSlideOut 0.3s ease';
-            setTimeout(() => {
-                if (toast.parentNode) {
-                    toast.parentNode.removeChild(toast);
-                }
-            }, 300);
-        }
-    }
-    
-    startTimerBlinking(color = 'yellow') {
-        // Add blinking class to timer elements
-        const blinkClass = color === 'green' ? 'timer-blink-green' : 'timer-blink-yellow';
-        
-        if (this.elements.lapTimer) {
-            this.elements.lapTimer.classList.add(blinkClass);
-        }
-        if (this.elements.lapTimerSide) {
-            this.elements.lapTimerSide.classList.add(blinkClass);
-        }
-    }
-    
-    stopTimerBlinking() {
-        // Remove all blinking classes from timer elements
-        if (this.elements.lapTimer) {
-            this.elements.lapTimer.classList.remove('timer-blink-yellow', 'timer-blink-green');
-        }
-        if (this.elements.lapTimerSide) {
-            this.elements.lapTimerSide.classList.remove('timer-blink-yellow', 'timer-blink-green');
-        }
-    }
-    
     resetGame() {
         console.log('resetGame called');
         
         // Esconde todos os overlays
         this.hideOverlay();
-        
-        // Para o piscar amarelo do timer
-        this.stopTimerBlinking();
-        
-        // Esconde o toast se estiver visível
-        this.hideToast();
+        this.hideLapComplete();
         
         this.gameState = 'menu';
         this.elements.gameContainer.classList.remove('playing');
@@ -945,12 +837,9 @@ class UI {
         localStorage.setItem('hotlap_game_mode', this.elements.gameModeSelect.value);
     }
     
-    saveBestTimes() {
-        if (this.bestTimeClassic) {
-            localStorage.setItem('hotlap_best_time_classic', this.bestTimeClassic.toString());
-        }
-        if (this.bestTimeContinuous) {
-            localStorage.setItem('hotlap_best_time_continuous', this.bestTimeContinuous.toString());
+    saveBestTime() {
+        if (this.bestTime) {
+            localStorage.setItem('hotlap_best_time', this.bestTime.toString());
         }
     }
     
@@ -960,23 +849,10 @@ class UI {
     }
     
     loadSavedData() {
-        // Load best times for both modes
-        const savedBestTimeClassic = localStorage.getItem('hotlap_best_time_classic');
-        if (savedBestTimeClassic) {
-            this.bestTimeClassic = parseInt(savedBestTimeClassic);
-        }
-        
-        const savedBestTimeContinuous = localStorage.getItem('hotlap_best_time_continuous');
-        if (savedBestTimeContinuous) {
-            this.bestTimeContinuous = parseInt(savedBestTimeContinuous);
-        }
-        
-        // Migrate old best time to classic mode if exists
-        const oldBestTime = localStorage.getItem('hotlap_best_time');
-        if (oldBestTime && !this.bestTimeClassic) {
-            this.bestTimeClassic = parseInt(oldBestTime);
-            this.saveBestTimes();
-            localStorage.removeItem('hotlap_best_time'); // Remove old key
+        // Load best time
+        const savedBestTime = localStorage.getItem('hotlap_best_time');
+        if (savedBestTime) {
+            this.bestTime = parseInt(savedBestTime);
         }
         
         // Load lap times
@@ -1053,17 +929,14 @@ class UI {
     }
 }
 
-// Add CSS for message animation if not already added
-if (!document.querySelector('#ui-animations-css')) {
-    const style = document.createElement('style');
-    style.id = 'ui-animations-css';
-    style.textContent = `
-        @keyframes fadeInOut {
-            0% { opacity: 0; transform: translate(-50%, -50%) scale(0.8); }
-            20% { opacity: 1; transform: translate(-50%, -50%) scale(1); }
-            80% { opacity: 1; transform: translate(-50%, -50%) scale(1); }
-            100% { opacity: 0; transform: translate(-50%, -50%) scale(0.8); }
-        }
-    `;
-    document.head.appendChild(style);
-}
+// Add CSS for message animation
+const style = document.createElement('style');
+style.textContent = `
+    @keyframes fadeInOut {
+        0% { opacity: 0; transform: translate(-50%, -50%) scale(0.8); }
+        20% { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+        80% { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+        100% { opacity: 0; transform: translate(-50%, -50%) scale(0.8); }
+    }
+`;
+document.head.appendChild(style);

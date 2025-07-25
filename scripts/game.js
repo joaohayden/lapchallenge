@@ -290,17 +290,21 @@ class Game {
     }
     
     pauseForLapComplete() {
+        console.log('Game: pauseForLapComplete() - Pausando o jogo para aguardar espaço');
         this.isWaitingForContinue = true;
         this.isPaused = true;
+        this.isRunning = false; // Garantir que o jogo pare completamente
     }
     
     continueFromLapComplete() {
+        console.log('Game: continueFromLapComplete() - Continuando após completar volta');
         if (this.isWaitingForContinue) {
             this.isWaitingForContinue = false;
             this.isPaused = false;
             
             // Verificar se estamos voltando das estatísticas contínuas
             if (this.isShowingContinuousStats) {
+                console.log('Game: Saindo das estatísticas do modo contínuo');
                 this.isShowingContinuousStats = false;
                 
                 // Para modo contínuo, reiniciar completamente o jogo
@@ -310,14 +314,37 @@ class Game {
             
             // Verificar o modo de jogo para volta normal
             const gameMode = this.ui.getGameMode ? this.ui.getGameMode() : 'classic';
+            console.log(`Game: Modo de jogo detectado: ${gameMode}`);
+            
+            // Log car state before reset
+            console.log(`Game: Estado do carro antes do reset - Speed: ${this.car.speed}, X: ${this.car.x}, Y: ${this.car.y}`);
             
             if (gameMode === 'classic') {
-                // No modo clássico, resetar completamente o carro
+                // No modo clássico, resetar completamente o carro (apenas uma vez aqui)
+                console.log('Game: Resetando carro para modo clássico');
                 this.car.reset();
+                
+                // Check if reset position is on track
+                const isOnTrack = this.track.isOnTrack(this.car.x, this.car.y);
+                console.log(`Game: Posição após reset está na pista? ${isOnTrack} - X: ${this.car.x}, Y: ${this.car.y}`);
+                
+                this.car.startLap(); // Garantir que startLap seja chamado após reset
+                
+                // Add small delay before restarting to ensure car stays at rest
+                setTimeout(() => {
+                    this.isRunning = true; // Reiniciar o jogo após delay
+                    console.log(`Game: Jogo reiniciado após delay - Speed: ${this.car.speed}`);
+                }, 100);
             } else {
                 // No modo contínuo, só resetar a posição mas manter a velocidade baixa
+                console.log('Game: Resetando posição para modo contínuo');
                 this.car.resetPosition();
+                this.car.startLap(); // Garantir que startLap seja chamado
+                this.isRunning = true; // Reiniciar o jogo
             }
+            
+            // Log car state after reset
+            console.log(`Game: Estado do carro após reset - Speed: ${this.car.speed}, X: ${this.car.x}, Y: ${this.car.y}`);
             
             // Hide ambos overlays
             if (this.ui && typeof this.ui.hideLapComplete === 'function') {
@@ -327,8 +354,13 @@ class Game {
                 this.ui.hideOverlay();
             }
             
-            // Start new lap
-            this.car.startLap();
+            // Start new lap timing
+            this.currentLapStartTime = Date.now();
+            this.gameJustStarted = Date.now(); // Reset timer to prevent immediate crash detection
+            
+            // Reiniciar gameLoop se necessário
+            this.lastTime = performance.now();
+            this.gameLoop();
         }
     }
     
@@ -417,20 +449,27 @@ class Game {
     }
     
     gameLoop(currentTime = performance.now()) {
-        if (!this.isRunning) return;
+        // Sempre continuar o loop para poder renderizar, mas verificar states
+        if (!this.isRunning && !this.isPaused) {
+            // Se não está rodando e não está pausado, parar completamente
+            return;
+        }
         
         // Calculate delta time
         this.deltaTime = currentTime - this.lastTime;
         this.lastTime = currentTime;
-        
-        if (!this.isPaused) {
+
+        // Só atualizar se não estiver pausado
+        if (!this.isPaused && this.isRunning) {
             this.update(this.deltaTime);
         }
-        
+
         this.render();
-        
-        // Continue loop
-        requestAnimationFrame((time) => this.gameLoop(time));
+
+        // Continue loop apenas se estiver rodando ou pausado (para manter renderização)
+        if (this.isRunning || this.isPaused) {
+            requestAnimationFrame((time) => this.gameLoop(time));
+        }
     }
     
     update(deltaTime) {
@@ -452,7 +491,14 @@ class Game {
     
     checkCrash() {
         if (this.isRunning && !this.isPaused && this.ui.getGameMode && this.ui.getGameMode() === 'classic') {
+            // Add small delay after game start to prevent immediate crash after reset
+            const timeSinceStart = Date.now() - this.gameJustStarted;
+            if (timeSinceStart < 100) { // 100ms delay after reset
+                return;
+            }
+            
             if (!this.track.isOnTrack(this.car.x, this.car.y)) {
+                console.log(`Game: Crash detected at X: ${this.car.x}, Y: ${this.car.y}`);
                 this.isRunning = false;
                 this.isPaused = false;
                 this.isCrashed = true; // Marcar que crashou
@@ -519,10 +565,11 @@ class Game {
         
         // Check if we're in classic mode
         const gameMode = this.ui.getGameMode ? this.ui.getGameMode() : 'classic';
+        console.log(`Game: onLapCompleted - Modo: ${gameMode}`);
         
         if (gameMode === 'classic') {
-            // In classic mode, reset car to start position
-            this.car.reset();
+            // In classic mode, just pause - don't reset car here (will be reset in continueFromLapComplete)
+            console.log('Game: Pausando para aguardar input do usuário no modo clássico');
             this.pauseForLapComplete();
         }
         
@@ -553,4 +600,3 @@ document.addEventListener('DOMContentLoaded', () => {
     
     console.log('HotLap Daily loaded successfully!');
 });
-

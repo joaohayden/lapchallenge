@@ -508,7 +508,6 @@ body {
     margin: 0.8rem 0;
     font-size: 1rem;
     line-height: 1.4;
-}
     border-top: 1px solid rgba(0, 212, 255, 0.3);
     padding-top: 1.5rem;
 }
@@ -800,24 +799,197 @@ body {
     left: 0;
     width: 100%;
     height: 100%;
-    background: rgba(0, 0, 0, 0.85);
+    background: rgba(0, 0, 0, 0.3);
+    backdrop-filter: blur(6px);
     display: none;
     align-items: center;
     justify-content: center;
     z-index: 10;
     border-radius: 15px;
+    animation: overlayFadeIn 0.3s ease;
+}
+
+@keyframes overlayFadeIn {
+    from {
+        opacity: 0;
+        backdrop-filter: blur(0px);
+    }
+    to {
+        opacity: 1;
+        backdrop-filter: blur(6px);
+    }
 }
 
 #overlayContent {
-    background: white;
-    border: 3px solid #2c3e50;
-    border-radius: 12px;
-    padding: 25px 30px;
+    background: rgba(255, 255, 255, 0.95);
+    border: 2px solid rgba(255, 255, 255, 0.8);
+    border-radius: 16px;
+    padding: 16px 20px;
     text-align: center;
     color: #2c3e50;
-    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3);
-    max-width: 85vw;
+    box-shadow: 
+        0 8px 20px rgba(0, 0, 0, 0.25),
+        0 2px 8px rgba(0, 0, 0, 0.15);
+    max-width: 280px;
+    min-width: 240px;
     font-family: 'Courier New', monospace;
+    position: relative;
+    overflow: hidden;
+    transform: scale(0.9);
+    animation: overlayScale 0.3s ease forwards;
+    backdrop-filter: blur(10px);
+}
+
+@keyframes overlayScale {
+    from {
+        transform: scale(0.9) translateY(20px);
+        opacity: 0;
+    }
+    to {
+        transform: scale(1) translateY(0);
+        opacity: 1;
+    }
+}
+
+/* Overlay Header com ícones */
+.overlay-header {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 12px;
+    margin-bottom: 20px;
+    padding-bottom: 15px;
+    border-bottom: 2px solid #e9ecef;
+}
+
+.overlay-icon {
+    font-size: 2.5rem;
+    line-height: 1;
+}
+
+.overlay-icon.crash {
+    color: #dc3545;
+    text-shadow: 0 0 10px rgba(220, 53, 69, 0.3);
+}
+
+.overlay-icon.success {
+    color: #28a745;
+    text-shadow: 0 0 10px rgba(40, 167, 69, 0.3);
+}
+
+.overlay-icon.finish {
+    color: #ffc107;
+    text-shadow: 0 0 10px rgba(255, 193, 7, 0.3);
+}
+
+.overlay-title {
+    font-size: 1.8rem;
+    font-weight: bold;
+    text-transform: uppercase;
+    letter-spacing: 2px;
+    margin: 0;
+}
+
+.overlay-title.crash {
+    color: #dc3545;
+}
+
+.overlay-title.success {
+    color: #28a745;
+}
+
+.overlay-title.finish {
+    color: #ffc107;
+}
+
+/* Overlay Body */
+.overlay-body {
+    margin: 20px 0;
+}
+
+.overlay-message {
+    font-size: 1.2rem;
+    line-height: 1.4;
+    margin-bottom: 15px;
+    color: #495057;
+}
+
+.overlay-time {
+    font-size: 2rem;
+    font-weight: bold;
+    color: #2c3e50;
+    margin: 15px 0;
+    padding: 15px 20px;
+    background: linear-gradient(145deg, #f8f9fa, #e9ecef);
+    border: 2px solid #dee2e6;
+    border-radius: 12px;
+    letter-spacing: 3px;
+    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
+}
+
+.overlay-time.best {
+    background: linear-gradient(145deg, #d4edda, #c3e6cb);
+    border-color: #28a745;
+    color: #155724;
+}
+
+.overlay-stats {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 15px;
+    margin: 20px 0;
+}
+
+.stat-item {
+    background: #f8f9fa;
+    border: 1px solid #dee2e6;
+    border-radius: 8px;
+    padding: 12px;
+    text-align: center;
+}
+
+.stat-label {
+    font-size: 0.8rem;
+    color: #6c757d;
+    text-transform: uppercase;
+    font-weight: bold;
+    letter-spacing: 1px;
+    margin-bottom: 5px;
+}
+
+.stat-value {
+    font-size: 1.3rem;
+    font-weight: bold;
+    color: #2c3e50;
+}
+
+/* Overlay Footer */
+.overlay-footer {
+    margin-top: 25px;
+    padding-top: 20px;
+    border-top: 2px solid #e9ecef;
+}
+
+.overlay-instruction {
+    font-size: 1rem;
+    color: #6c757d;
+    font-weight: 600;
+    margin-bottom: 10px;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+}
+
+.overlay-key {
+    display: inline-block;
+    background: linear-gradient(145deg, #f8f9fa, #e9ecef);
+    border: 2px solid #6c757d;
+    border-radius: 6px;
+    padding: 8px 15px;
+    font-weight: bold;
+    color: #2c3e50;
+    margin: 0 5px;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    font-size: 0.9rem;
 }
 
 /* Sparkline */
@@ -1134,4 +1306,277 @@ body {
         padding: 12px;
         font-size: 0.85rem;
     }
+}
+
+/* Enhanced Overlay Styles - Extra Compact Design */
+.overlay-header {
+    margin-bottom: 12px;
+    position: relative;
+}
+
+.overlay-icon {
+    font-size: 2rem;
+    display: block;
+    margin-bottom: 6px;
+    text-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+    animation: iconPulse 2s ease-in-out infinite;
+}
+
+.overlay-title {
+    font-size: 1.1rem;
+    font-weight: 800;
+    color: #1a1a2e;
+    margin: 0;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
+}
+
+.overlay-body {
+    margin: 12px 0;
+    position: relative;
+}
+
+.overlay-message {
+    font-size: 0.8rem;
+    color: #333;
+    margin-bottom: 8px;
+    font-weight: 500;
+    line-height: 1.2;
+}
+
+.overlay-time {
+    font-size: 1.6rem;
+    font-weight: 900;
+    color: #0f3460;
+    margin: 10px 0;
+    text-shadow: 0 2px 4px rgba(15, 52, 96, 0.3);
+    font-family: 'Courier New', monospace;
+}
+
+.overlay-subtitle {
+    font-size: 0.65rem;
+    color: #666;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    font-weight: 600;
+}
+
+.overlay-footer {
+    margin-top: 12px;
+    padding-top: 8px;
+    border-top: 1px solid rgba(15, 52, 96, 0.1);
+}
+
+.overlay-instruction {
+    font-size: 0.75rem;
+    color: #555;
+    font-weight: 500;
+}
+
+.overlay-instruction kbd {
+    background: linear-gradient(145deg, #f0f0f0, #e0e0e0);
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    padding: 2px 4px;
+    font-family: 'Courier New', monospace;
+    font-weight: bold;
+    color: #333;
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
+    margin: 0 2px;
+    font-size: 0.7rem;
+}
+
+/* Extra Compact Stats Grid for Continuous Mode */
+.stats-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+    margin: 10px 0;
+}
+
+.stat-item {
+    background: rgba(15, 52, 96, 0.08);
+    padding: 8px;
+    border-radius: 6px;
+    border: 1px solid rgba(15, 52, 96, 0.2);
+}
+
+.stat-value {
+    font-size: 1.1rem;
+    font-weight: 900;
+    color: #0f3460;
+    margin-bottom: 2px;
+    font-family: 'Courier New', monospace;
+}
+
+.stat-label {
+    font-size: 0.6rem;
+    color: #666;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    font-weight: 600;
+}
+
+/* Ultra Compact Recent Laps */
+.recent-laps {
+    margin-top: 10px;
+    padding: 8px;
+    background: rgba(240, 245, 255, 0.8);
+    border-radius: 6px;
+    border: 1px solid rgba(15, 52, 96, 0.1);
+}
+
+.recent-laps-title {
+    font-size: 0.65rem;
+    font-weight: 700;
+    color: #0f3460;
+    margin-bottom: 6px;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+}
+
+.recent-lap {
+    display: flex;
+    justify-content: space-between;
+    padding: 2px 0;
+    border-bottom: 1px solid rgba(15, 52, 96, 0.1);
+    font-family: 'Courier New', monospace;
+    font-size: 0.7rem;
+    color: #333;
+}
+
+.recent-lap:last-child {
+    border-bottom: none;
+}
+
+/* Enhanced Animations */
+@keyframes iconPulse {
+    0%, 100% {
+        transform: scale(1);
+    }
+    50% {
+        transform: scale(1.1);
+    }
+}
+
+/* Enhanced shimmer effect */
+#overlayContent::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: -100%;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.4), transparent);
+    animation: shimmer 2s infinite;
+}
+
+@keyframes shimmer {
+    0% {
+        left: -100%;
+    }
+    100% {
+        left: 100%;
+    }
+}
+
+/* Enhanced responsive adjustments - Extra Compact */
+@media (max-width: 768px) {
+    #overlayContent {
+        max-width: 260px;
+        min-width: 200px;
+        padding: 14px 16px;
+    }
+    
+    .overlay-title {
+        font-size: 1rem;
+        letter-spacing: 1px;
+    }
+    
+    .overlay-time {
+        font-size: 1.4rem;
+    }
+    
+    .overlay-icon {
+        font-size: 1.8rem;
+    }
+    
+    .stats-grid {
+        grid-template-columns: 1fr;
+        gap: 6px;
+    }
+    
+    .overlay-message {
+        font-size: 0.75rem;
+    }
+    
+    .overlay-instruction {
+        font-size: 0.7rem;
+    }
+    
+    .recent-lap {
+        font-size: 0.65rem;
+    }
+}
+
+/* Toast and Timer Blinking Animations */
+@keyframes toastSlideIn {
+    from {
+        opacity: 0;
+        transform: translateX(-50%) translateY(20px);
+    }
+    to {
+        opacity: 1;
+        transform: translateX(-50%) translateY(0);
+    }
+}
+
+@keyframes toastSlideOut {
+    from {
+        opacity: 1;
+        transform: translateX(-50%) translateY(0);
+    }
+    to {
+        opacity: 0;
+        transform: translateX(-50%) translateY(20px);
+    }
+}
+
+@keyframes timerBlinkYellow {
+    0%, 50% {
+        background-color: transparent;
+        color: #222;
+    }
+    51%, 100% {
+        background-color: #ffc107;
+        color: #333;
+        text-shadow: 0 0 8px rgba(255, 193, 7, 0.6);
+    }
+}
+
+@keyframes timerBlinkGreen {
+    0%, 50% {
+        background-color: transparent;
+        color: #222;
+    }
+    51%, 100% {
+        background-color: #28a745;
+        color: #fff;
+        text-shadow: 0 0 8px rgba(40, 167, 69, 0.6);
+    }
+}
+
+.timer-blink-yellow {
+    animation: timerBlinkYellow 1s infinite;
+    border-radius: 4px;
+    padding: 2px 4px;
+    transition: all 0.1s ease;
+}
+
+.timer-blink-green {
+    animation: timerBlinkGreen 1s infinite;
+    border-radius: 4px;
+    padding: 2px 4px;
+    transition: all 0.1s ease;
 }

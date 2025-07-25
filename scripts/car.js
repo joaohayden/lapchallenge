@@ -35,6 +35,9 @@ class Car {
         this.previousPosition = { x: this.x, y: this.y };
         this.currentLapStartTime = null;
         this.lapCompleted = false;
+        
+        // Reset protection to prevent immediate movement after reset
+        this.justReset = false;
     }
     
     update(deltaTime) {
@@ -50,9 +53,17 @@ class Car {
         }
         
         // Automatic acceleration (like the original game)
-        this.speed += this.acceleration;
-        if (this.speed > this.maxSpeed) {
-            this.speed = this.maxSpeed;
+        // But only if not just reset
+        if (!this.justReset) {
+            this.speed += this.acceleration;
+            if (this.speed > this.maxSpeed) {
+                this.speed = this.maxSpeed;
+            }
+        } else {
+            // Clear the reset flag after a short delay to allow movement again
+            setTimeout(() => {
+                this.justReset = false;
+            }, 100);
         }
         
         // Convert angle to velocity
@@ -157,6 +168,7 @@ class Car {
         this.velocity = { x: 0, y: 0 };
         this.currentLapStartTime = null;
         this.lapCompleted = false;
+        this.justReset = true; // Prevent immediate acceleration
     }
     
     // Reset only position (for continuous mode)
@@ -169,6 +181,7 @@ class Car {
         this.velocity = { x: 0, y: 0 };
         this.currentLapStartTime = null;
         this.lapCompleted = false;
+        this.justReset = true; // Prevent immediate acceleration
     }
     
     // Start a new lap
