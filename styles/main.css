@@ -229,16 +229,20 @@ body {
 /* Título do jogo */
 .title-center {
     text-align: center;
-    position: relative;
+    position: fixed;
+    left: 50%;
+    transform: translateX(-50%);
     z-index: 200;
+    width: auto;
+    margin: 0;
 }
 
 .pixel-title-box {
     display: inline-block;
     background: #000000;
     padding: 6px 12px;
+    margin-top: clamp(8px, 2.5vh, 32px);
     margin-bottom: 8px;
-    margin-top: clamp(16px, 4vh, 40px);
     line-height: 1;
 }
 
@@ -1078,9 +1082,21 @@ body {
         margin-bottom: 10px;
     }
     
+    .subtitle-row {
+        position: fixed !important;
+        bottom: calc((((100vh - 440px) / 3) / 2)) !important;
+        left: 50% !important;
+        transform: translateX(-50%) !important;
+        z-index: 200 !important;
+        display: flex !important;
+        width: auto !important;
+        margin: 0 !important;
+        text-align: center !important;
+        gap: 20px !important;
+    }
     .title-center {
         position: fixed !important;
-        top: calc((100vh - 440px) / 4) !important;
+        top: calc(((100vh - 440px) / 6)) !important;
         left: 50% !important;
         transform: translateX(-50%) !important;
         z-index: 200 !important;
@@ -1088,10 +1104,14 @@ body {
         width: auto !important;
         margin: 0 !important;
     }
+    .pixel-title-box {
+        margin-top: clamp(16px, 2.5vh, 40px) !important;
+        margin-bottom: 10px !important;
+    }
     
     .subtitle-row {
         position: fixed !important;
-        bottom: calc((100vh - 440px) / 4) !important;
+        bottom: calc((((100vh - 440px) / 3) / 2)) !important;
         left: 50% !important;
         transform: translateX(-50%) !important;
         z-index: 200 !important;
@@ -1661,13 +1681,17 @@ body {
 @media (min-width: 1441px) {
     .title-center {
         position: fixed !important;
-        top: calc((100vh - 440px) / 4) !important;
+        top: calc(((100vh - 440px) / 6)) !important;
         left: 50% !important;
         transform: translateX(-50%) !important;
         z-index: 200 !important;
         display: block !important;
         width: auto !important;
         margin: 0 !important;
+    }
+    .pixel-title-box {
+        margin-top: clamp(24px, 3vh, 56px) !important;
+        margin-bottom: 12px !important;
     }
     
     .subtitle-row {
@@ -1727,13 +1751,17 @@ body {
 @media (min-width: 1921px) {
     .title-center {
         position: fixed !important;
-        top: calc((100vh - 440px) / 4) !important;
+        top: calc(((100vh - 440px) / 6)) !important;
         left: 50% !important;
         transform: translateX(-50%) !important;
         z-index: 200 !important;
         display: block !important;
         width: auto !important;
         margin: 0 !important;
+    }
+    .pixel-title-box {
+        margin-top: clamp(32px, 4vh, 72px) !important;
+        margin-bottom: 14px !important;
     }
     
     .subtitle-row {
