@@ -47,21 +47,27 @@ class Car {
     }
     
     update(deltaTime) {
+        // Normalize deltaTime to 60 FPS standard (16.67ms per frame)
+        // This ensures consistent speed across different devices and frame rates
+        const TARGET_FPS = 60;
+        const TARGET_FRAME_TIME = 1000 / TARGET_FPS; // 16.67ms
+        const timeMultiplier = deltaTime / TARGET_FRAME_TIME;
+        
         this.previousPosition.x = this.x;
         this.previousPosition.y = this.y;
         
         // Handle input
         if (this.input.left) {
-            this.angle -= this.turnSpeed * (this.speed / this.maxSpeed);
+            this.angle -= this.turnSpeed * (this.speed / this.maxSpeed) * timeMultiplier;
         }
         if (this.input.right) {
-            this.angle += this.turnSpeed * (this.speed / this.maxSpeed);
+            this.angle += this.turnSpeed * (this.speed / this.maxSpeed) * timeMultiplier;
         }
         
         // Automatic acceleration (like the original game)
         // But only if not just reset
         if (!this.justReset) {
-            this.speed += this.acceleration;
+            this.speed += this.acceleration * timeMultiplier;
             if (this.speed > this.maxSpeed) {
                 this.speed = this.maxSpeed;
             }
@@ -74,8 +80,8 @@ class Car {
         
         // Convert angle to velocity
         // Calculate new position
-        const newX = this.x + Math.cos(this.angle) * this.speed;
-        const newY = this.y + Math.sin(this.angle) * this.speed;
+        const newX = this.x + Math.cos(this.angle) * this.speed * timeMultiplier;
+        const newY = this.y + Math.sin(this.angle) * this.speed * timeMultiplier;
         
         // Check if movement is allowed
         const gameMode = window.game?.ui?.getGameMode ? window.game.ui.getGameMode() : 'classic';
@@ -88,8 +94,8 @@ class Car {
                 // Movement allowed - update position
                 this.x = newX;
                 this.y = newY;
-                this.velocity.x = Math.cos(this.angle) * this.speed;
-                this.velocity.y = Math.sin(this.angle) * this.speed;
+                this.velocity.x = Math.cos(this.angle) * this.speed * timeMultiplier;
+                this.velocity.y = Math.sin(this.angle) * this.speed * timeMultiplier;
             } else {
                 // Movement blocked by blue boundaries - don't update position
                 this.velocity.x = 0;
@@ -99,8 +105,8 @@ class Car {
             // Classic mode - normal movement
             this.x = newX;
             this.y = newY;
-            this.velocity.x = Math.cos(this.angle) * this.speed;
-            this.velocity.y = Math.sin(this.angle) * this.speed;
+            this.velocity.x = Math.cos(this.angle) * this.speed * timeMultiplier;
+            this.velocity.y = Math.sin(this.angle) * this.speed * timeMultiplier;
         }
         
         // Check if on track and apply friction  
@@ -114,32 +120,37 @@ class Car {
             if (inToleranceZone) {
                 // Apply moderate friction penalty for tolerance zone
                 // Much less aggressive than before - just like being "off track" but not blocking
-                this.speed *= this.offTrackFriction; // Use the same as normal off-track (0.85)
-                this.velocity.x *= this.offTrackFriction;
-                this.velocity.y *= this.offTrackFriction;
+                const frictionFactor = Math.pow(this.offTrackFriction, timeMultiplier);
+                this.speed *= frictionFactor;
+                this.velocity.x *= frictionFactor;
+                this.velocity.y *= frictionFactor;
             } else if (onTrack) {
                 // On original track - apply normal friction
-                this.speed *= this.friction;
-                this.velocity.x *= this.friction;
-                this.velocity.y *= this.friction;
+                const frictionFactor = Math.pow(this.friction, timeMultiplier);
+                this.speed *= frictionFactor;
+                this.velocity.x *= frictionFactor;
+                this.velocity.y *= frictionFactor;
             } else {
                 // Shouldn't happen in continuous mode due to movement blocking
-                this.speed *= this.offTrackFriction;
-                this.velocity.x *= this.offTrackFriction;
-                this.velocity.y *= this.offTrackFriction;
+                const frictionFactor = Math.pow(this.offTrackFriction, timeMultiplier);
+                this.speed *= frictionFactor;
+                this.velocity.x *= frictionFactor;
+                this.velocity.y *= frictionFactor;
             }
         } else {
             // Classic mode - original logic
             if (!onTrack) {
                 // Off track - reduce speed significantly
-                this.speed *= this.offTrackFriction;
-                this.velocity.x *= this.offTrackFriction;
-                this.velocity.y *= this.offTrackFriction;
+                const frictionFactor = Math.pow(this.offTrackFriction, timeMultiplier);
+                this.speed *= frictionFactor;
+                this.velocity.x *= frictionFactor;
+                this.velocity.y *= frictionFactor;
             } else {
                 // On track - normal friction
-                this.speed *= this.friction;
-                this.velocity.x *= this.friction;
-                this.velocity.y *= this.friction;
+                const frictionFactor = Math.pow(this.friction, timeMultiplier);
+                this.speed *= frictionFactor;
+                this.velocity.x *= frictionFactor;
+                this.velocity.y *= frictionFactor;
             }
         }
         
