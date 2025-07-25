@@ -388,7 +388,7 @@ body {
 .game-ui {
     grid-area: main;
     display: grid;
-    grid-template-columns: 250px 1fr 250px;
+    grid-template-columns: 250px 1fr 200px;
     grid-template-areas: "controls game times";
     gap: 15px;
     align-items: center;
@@ -424,7 +424,7 @@ body {
     overflow: hidden;
     box-shadow: 0 4px 12px rgba(44, 62, 80, 0.15);
     width: 533px;
-    height: 100%;
+    height: 400px;
     max-width: 100%;
     /* alinhamento removido para grid, será feito no flexbox */
 }
@@ -444,40 +444,6 @@ body {
     border-radius: 15px;
     box-shadow: 0 4px 12px rgba(44, 62, 80, 0.15);
     overflow: hidden;
-}
-
-/* Cards dentro da coluna de tempos */
-.times-column .top-time-box,
-.times-column .sparkline-box {
-    min-width: auto;
-    width: 100%;
-    height: 75px;
-    padding: 8px 10px;
-    font-size: 0.8rem;
-    flex-shrink: 0;
-}
-
-.times-column .top-time-label,
-.times-column .sparkline-label {
-    font-size: 0.65rem;
-    margin-bottom: 4px;
-}
-
-.times-column .top-time-value {
-    font-size: 1.2rem;
-    letter-spacing: 1px;
-}
-
-.times-column #sparkline-side {
-    display: flex;
-    gap: 2px;
-    height: 22px;
-    align-items: flex-end;
-    justify-content: center;
-}
-
-.times-column .sparkline-bar {
-    width: 8px;
 }
 
 /* Seção de configuração do piloto */
@@ -1353,7 +1319,7 @@ body {
         align-self: center;
         grid-area: main !important;
         display: grid !important;
-        grid-template-columns: 250px 1fr 250px !important;
+        grid-template-columns: 250px 1fr 200px !important;
         grid-template-areas: "controls game times" !important;
     }
     

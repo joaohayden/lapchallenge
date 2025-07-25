@@ -1,0 +1,715 @@
+/* ===== CSS REESCRITO - VERSÃO LIMPA ===== */
+
+/* Reset básico */
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+    font-family: 'Courier New', monospace;
+    -webkit-touch-callout: none;
+    -webkit-user-select: none;
+    -khtml-user-select: none;
+    -moz-user-select: none;
+    -ms-user-select: none;
+    user-select: none;
+}
+
+/* === LAYOUT BASE === */
+body {
+    background: white;
+    margin: 0;
+    padding: 0;
+}
+
+/* Container principal usando CSS Grid simples */
+.game-container {
+    min-height: 100vh;
+    display: grid;
+    grid-template-areas: 
+        "header"
+        "main"
+        "footer";
+    grid-template-rows: auto 1fr auto;
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 10px;
+}
+
+/* === SEÇÕES PRINCIPAIS === */
+
+/* Header - Título */
+.title-center {
+    grid-area: header;
+    text-align: center;
+    padding: 15px 0;
+}
+
+.pixel-title-box {
+    display: inline-block;
+    background: #000000;
+    padding: 6px 12px;
+    margin: 0;
+}
+
+.pixel-title-text {
+    font-size: clamp(1.2rem, 4vw, 2rem);
+    font-weight: bold;
+    color: #ffffff;
+    letter-spacing: 2px;
+    margin: 0;
+}
+
+/* Main - Área do jogo */
+.game-main {
+    grid-area: main;
+    display: flex;
+    flex-direction: column;
+    gap: 15px;
+    align-items: center;
+}
+
+/* Cards de tempo no topo (visível apenas em mobile) */
+.top-times-row {
+    display: none; /* Escondido por padrão, mostrado em mobile */
+    justify-content: center;
+    gap: 12px;
+    flex-wrap: wrap;
+}
+
+.top-time-box,
+.sparkline-box {
+    background: #f5f5f5;
+    border: 2px solid #0066ff;
+    border-radius: 10px;
+    padding: 12px;
+    min-width: 100px;
+    height: 70px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    flex: 1;
+}
+
+.top-time-label,
+.sparkline-label {
+    font-size: 0.7rem;
+    color: #0066ff;
+    font-weight: bold;
+    margin-bottom: 4px;
+    text-transform: uppercase;
+}
+
+.top-time-value {
+    font-size: 1.2rem;
+    font-family: 'Courier New', monospace;
+    font-weight: bold;
+    color: #222;
+}
+
+/* Layout do jogo - Flexível */
+.game-ui {
+    display: flex;
+    flex-direction: column;
+    gap: 15px;
+    width: 100%;
+    max-width: 1000px;
+}
+
+/* Canvas do jogo */
+.game-screen {
+    background: white;
+    border: 3px solid #2c3e50;
+    border-radius: 15px;
+    overflow: hidden;
+    box-shadow: 0 4px 12px rgba(44, 62, 80, 0.15);
+    width: 100%;
+    max-width: 533px;
+    height: 400px;
+    margin: 0 auto;
+}
+
+#gameCanvas {
+    display: block;
+    width: 100%;
+    height: 100%;
+    background: white;
+}
+
+/* Painel de controles */
+.controls-panel {
+    background: #f8f9fa;
+    border: 3px solid #2c3e50;
+    border-radius: 15px;
+    padding: 15px;
+    box-shadow: 0 4px 12px rgba(44, 62, 80, 0.15);
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+/* Coluna de tempos - escondida em mobile */
+.times-column {
+    display: none;
+}
+
+/* Footer */
+.subtitle-row {
+    grid-area: footer;
+    text-align: center;
+    padding: 15px 0;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 20px;
+    flex-wrap: wrap;
+}
+
+.tagline,
+#next-track-time {
+    color: #333;
+    font-size: clamp(0.8rem, 2vw, 1rem);
+    margin: 0;
+    font-weight: 500;
+}
+
+/* === COMPONENTES === */
+
+/* Setup do jogador */
+.player-setup label {
+    display: block;
+    font-size: 0.75rem;
+    color: #2c3e50;
+    text-transform: uppercase;
+    font-weight: bold;
+    margin-bottom: 6px;
+}
+
+.player-setup input,
+.player-setup select {
+    width: 100%;
+    padding: 10px;
+    border: 2px solid #34495e;
+    border-radius: 8px;
+    background: white;
+    font-size: 0.9rem;
+    font-weight: 600;
+    color: #2c3e50;
+    margin-bottom: 10px;
+    outline: none;
+}
+
+.player-setup select {
+    cursor: pointer;
+    appearance: none;
+    background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6,9 12,15 18,9'%3e%3c/polyline%3e%3c/svg%3e");
+    background-repeat: no-repeat;
+    background-position: right 8px center;
+    background-size: 16px;
+    padding-right: 35px;
+}
+
+/* Botão principal */
+.pixel-button {
+    width: 100%;
+    padding: 14px;
+    border: 3px solid #2c3e50;
+    border-radius: 10px;
+    background: linear-gradient(145deg, #dc3545, #c82333);
+    color: white;
+    font-weight: bold;
+    font-size: 0.9rem;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    box-shadow: 0 4px 8px rgba(220, 53, 69, 0.3);
+}
+
+.pixel-button:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 12px rgba(220, 53, 69, 0.4);
+}
+
+/* Controles de direção */
+.controls-grid {
+    display: flex;
+    justify-content: space-between;
+    gap: 12px;
+}
+
+.control-item {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 8px;
+    flex: 1;
+}
+
+.control-key {
+    width: 100%;
+    height: 55px;
+    border: 3px solid #2c3e50;
+    background: linear-gradient(145deg, #ecf0f1, #d5dbdb);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.5rem;
+    font-weight: bold;
+    cursor: pointer;
+    border-radius: 10px;
+    box-shadow: 0 3px 6px rgba(44, 62, 80, 0.2);
+    transition: all 0.1s ease;
+    color: #2c3e50;
+}
+
+.control-key:hover {
+    background: linear-gradient(145deg, #d5dbdb, #bdc3c7);
+    transform: translateY(-1px);
+}
+
+.control-key:active,
+.control-key.active {
+    background: linear-gradient(145deg, #3498db, #2980b9);
+    color: white;
+    transform: translateY(2px) scale(0.95);
+}
+
+.control-item span {
+    text-align: center;
+    font-size: 0.75rem;
+    color: #2c3e50;
+    text-transform: uppercase;
+    font-weight: 600;
+}
+
+/* Descrição do modo */
+.mode-description {
+    background: #fff3cd;
+    border: 1px solid #ffc107;
+    border-radius: 8px;
+    padding: 12px;
+    font-size: 0.8rem;
+    color: #856404;
+    line-height: 1.4;
+    border-left: 4px solid #ffc107;
+    font-weight: 600;
+}
+
+/* === NAVEGAÇÃO E MODAIS === */
+.top-navigation {
+    background: linear-gradient(135deg, #1a1a2e, #16213e);
+    border-bottom: 2px solid #00d4ff;
+    padding: 0.8rem 0;
+    position: sticky;
+    top: 0;
+    z-index: 1000;
+}
+
+.nav-container {
+    max-width: 1200px;
+    margin: 0 auto;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0 1rem;
+}
+
+.nav-brand {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    color: #00d4ff;
+    font-weight: bold;
+    font-size: 1.2rem;
+}
+
+.nav-links {
+    display: flex;
+    gap: 1rem;
+}
+
+.nav-button {
+    background: rgba(0, 212, 255, 0.1);
+    border: 1px solid #00d4ff;
+    color: #ffffff;
+    padding: 0.5rem 1rem;
+    border-radius: 6px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 0.3rem;
+    font-size: 0.9rem;
+    transition: all 0.3s ease;
+}
+
+.nav-button:hover {
+    background: rgba(0, 212, 255, 0.2);
+    transform: translateY(-1px);
+}
+
+/* Modais */
+.modal {
+    display: none;
+    position: fixed;
+    z-index: 2000;
+    left: 0;
+    top: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0, 0, 0, 0.8);
+    backdrop-filter: blur(5px);
+}
+
+.modal-content {
+    background: linear-gradient(135deg, #1a1a2e, #16213e);
+    margin: 5% auto;
+    border: 2px solid #00d4ff;
+    border-radius: 12px;
+    width: 90%;
+    max-width: 600px;
+    box-shadow: 0 10px 30px rgba(0, 212, 255, 0.3);
+}
+
+.modal-header {
+    background: rgba(0, 212, 255, 0.1);
+    padding: 1rem 1.5rem;
+    border-bottom: 1px solid #00d4ff;
+    border-radius: 10px 10px 0 0;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.modal-header h2 {
+    color: #00d4ff;
+    font-size: 1.5rem;
+    margin: 0;
+}
+
+.close {
+    color: #ffffff;
+    font-size: 2rem;
+    font-weight: bold;
+    cursor: pointer;
+    transition: color 0.3s ease;
+}
+
+.close:hover {
+    color: #00d4ff;
+}
+
+.modal-body {
+    padding: 1.5rem;
+    color: #ffffff;
+}
+
+/* === OVERLAY DO JOGO === */
+#gameOverlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.3);
+    backdrop-filter: blur(6px);
+    display: none;
+    align-items: center;
+    justify-content: center;
+    z-index: 10;
+    border-radius: 15px;
+}
+
+#overlayContent {
+    background: rgba(255, 255, 255, 0.95);
+    border: 2px solid rgba(255, 255, 255, 0.8);
+    border-radius: 16px;
+    padding: 20px;
+    text-align: center;
+    color: #2c3e50;
+    box-shadow: 0 8px 20px rgba(0, 0, 0, 0.25);
+    max-width: 300px;
+    min-width: 250px;
+    backdrop-filter: blur(10px);
+}
+
+.overlay-title {
+    font-size: 1.5rem;
+    font-weight: bold;
+    text-transform: uppercase;
+    letter-spacing: 2px;
+    margin-bottom: 15px;
+}
+
+.overlay-time {
+    font-size: 2rem;
+    font-weight: bold;
+    color: #2c3e50;
+    margin: 15px 0;
+    padding: 15px 20px;
+    background: linear-gradient(145deg, #f8f9fa, #e9ecef);
+    border: 2px solid #dee2e6;
+    border-radius: 12px;
+    letter-spacing: 3px;
+}
+
+/* === RESPONSIVIDADE === */
+
+/* Mobile First - Telas pequenas (padrão já definido acima) */
+
+/* Tablets em paisagem */
+@media (min-width: 768px) and (max-height: 800px) {
+    .game-container {
+        grid-template-rows: auto 1fr auto;
+        padding: 15px;
+    }
+    
+    .game-ui {
+        flex-direction: row;
+        justify-content: center;
+        align-items: center;
+        gap: 20px;
+    }
+    
+    .controls-panel {
+        width: 250px;
+        flex-shrink: 0;
+    }
+    
+    .game-screen {
+        flex-shrink: 0;
+    }
+}
+
+/* Desktop - Telas grandes */
+@media (min-width: 1024px) {
+    .game-container {
+        padding: 20px;
+    }
+    
+    .game-ui {
+        flex-direction: row;
+        justify-content: center;
+        align-items: center;
+        gap: 20px;
+        max-width: 1200px;
+    }
+    
+    .controls-panel {
+        width: 250px;
+        height: 400px;
+        flex-shrink: 0;
+    }
+    
+    .game-screen {
+        flex-shrink: 0;
+    }
+    
+    .times-column {
+        display: flex;
+        flex-direction: column;
+        gap: 15px;
+        width: 200px;
+        height: 400px;
+        background: #f8f9fa;
+        border: 3px solid #2c3e50;
+        border-radius: 15px;
+        padding: 16px;
+        box-shadow: 0 4px 12px rgba(44, 62, 80, 0.15);
+        flex-shrink: 0;
+    }
+    
+    .times-column .top-time-box,
+    .times-column .sparkline-box {
+        width: 100%;
+        height: 75px;
+        min-width: auto;
+    }
+}
+
+/* Mobile específico */
+@media (max-width: 767px) {
+    body {
+        overflow-y: auto;
+    }
+    
+    .top-times-row {
+        display: flex;
+    }
+    
+    .game-container {
+        min-height: 100vh;
+        padding: 10px;
+    }
+    
+    .game-screen {
+        height: min(60vh, 350px);
+        max-width: 100%;
+    }
+    
+    .controls-panel {
+        width: 100%;
+    }
+    
+    .nav-container {
+        flex-direction: column;
+        gap: 0.8rem;
+        text-align: center;
+    }
+    
+    .nav-links {
+        flex-direction: row;
+        justify-content: center;
+    }
+    
+    .modal-content {
+        width: 95%;
+        margin: 10% auto;
+    }
+}
+
+/* Mobile muito pequeno */
+@media (max-width: 480px) {
+    .game-container {
+        padding: 8px;
+    }
+    
+    .controls-panel {
+        padding: 12px;
+    }
+    
+    .control-key {
+        height: 50px;
+        font-size: 1.3rem;
+    }
+    
+    .pixel-button {
+        padding: 12px;
+        font-size: 0.8rem;
+    }
+    
+    .top-time-box,
+    .sparkline-box {
+        min-width: 80px;
+        height: 60px;
+        padding: 6px 8px;
+    }
+    
+    .top-time-value {
+        font-size: 1rem;
+    }
+    
+    .game-screen {
+        height: min(50vh, 300px);
+    }
+}
+
+/* === EXTRAS === */
+
+/* Sparkline */
+#sparkline {
+    display: flex;
+    gap: 4px;
+    height: 24px;
+    align-items: flex-end;
+    justify-content: center;
+}
+
+.sparkline-bar {
+    width: 8px;
+    border-radius: 2px;
+    transition: all 0.3s ease;
+}
+
+/* Teams colors */
+#teamSelect.ferrari { border-color: #dc143c; }
+#teamSelect.redbull { border-color: #1e3a8a; }
+#teamSelect.mercedes { border-color: #9ca3af; }
+#teamSelect.mclaren { border-color: #ea580c; }
+
+/* Lap count específico */
+#lap-count-box {
+    background: #f0f8f0;
+    border-color: #00cc00;
+}
+
+#lap-count-box .top-time-label,
+#lap-count-box .top-time-value {
+    color: #00cc00;
+}
+
+/* Stats */
+.stats {
+    position: absolute;
+    top: 10px;
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 1;
+}
+
+#lap-timer {
+    font-size: 1.2rem;
+    font-weight: bold;
+    color: #0066ff;
+    text-shadow: 1px 1px 0 white;
+}
+
+/* Instruções mobile */
+.game-instructions {
+    text-align: center;
+    color: #2c3e50;
+    font-size: 0.7rem;
+    background: #ecf0f1;
+    border-radius: 8px;
+    padding: 8px;
+    border: 1px solid #bdc3c7;
+    margin-top: 10px;
+}
+
+/* Footer do site */
+.game-footer {
+    background: linear-gradient(135deg, #1a1a2e, #16213e);
+    border-top: 2px solid #00d4ff;
+    margin-top: 2rem;
+    padding: 2rem 1rem;
+    color: #ffffff;
+}
+
+.footer-content {
+    max-width: 1200px;
+    margin: 0 auto;
+}
+
+.how-to-play h3 {
+    text-align: center;
+    color: #00d4ff;
+    font-size: 1.5rem;
+    margin-bottom: 1.5rem;
+    text-transform: uppercase;
+    letter-spacing: 2px;
+}
+
+.instructions-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+    gap: 2rem;
+    margin-bottom: 2rem;
+}
+
+.instruction-section {
+    background: rgba(0, 212, 255, 0.1);
+    border: 1px solid #00d4ff;
+    border-radius: 8px;
+    padding: 1.5rem;
+    text-align: center;
+}
+
+/* Animações */
+@keyframes fadeIn {
+    from { opacity: 0; transform: translateY(10px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+.fade-in {
+    animation: fadeIn 0.5s ease-out;
+}

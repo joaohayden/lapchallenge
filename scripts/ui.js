@@ -8,10 +8,10 @@ class UI {
             gameModeToggle: document.getElementById('gameModeToggle'),
             modeDescription: document.getElementById('modeDescription'),
             startButton: document.getElementById('startButton'),
-            lapTimer: document.getElementById('lap-timer'),
-            bestLap: document.getElementById('best-lap-timer'),
-            lapCount: document.getElementById('lap-count'),
-            lapCountBox: document.getElementById('lap-count-box'),
+            lapTimer: document.getElementById('lap-timer-side'),
+            bestLap: document.getElementById('best-lap-timer-side'),
+            lapCount: document.getElementById('lap-count-side'),
+            lapCountBox: document.getElementById('lap-count-box-side'),
             // Elementos da coluna lateral para layout 3 colunas
             lapTimerSide: document.getElementById('lap-timer-side'),
             bestLapSide: document.getElementById('best-lap-timer-side'),
@@ -19,7 +19,7 @@ class UI {
             lapCountBoxSide: document.getElementById('lap-count-box-side'),
             sparklineSide: document.getElementById('sparkline-side'),
             gameContainer: document.querySelector('.game-container'),
-            sparkline: document.getElementById('sparkline'),
+            sparkline: document.getElementById('sparkline-side'),
         };
         
         this.gameState = 'menu'; // 'menu', 'playing', 'paused'
