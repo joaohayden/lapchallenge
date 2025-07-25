@@ -862,6 +862,15 @@ body {
     border-bottom: 2px solid #e9ecef;
 }
 
+.overlay-header-red {
+    border-bottom: 2px solid #dc3545;
+    background: linear-gradient(135deg, #dc3545 0%, #c82333 100%);
+    color: white;
+    margin: -20px -20px 20px -20px;
+    padding: 20px 20px 15px 20px;
+    border-radius: 12px 12px 0 0;
+}
+
 .overlay-icon {
     font-size: 2.5rem;
     line-height: 1;

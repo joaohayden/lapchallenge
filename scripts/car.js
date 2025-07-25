@@ -36,6 +36,12 @@ class Car {
         this.currentLapStartTime = null;
         this.lapCompleted = false;
         
+        // Directional validation for anti-cheat
+        this.lastExitSide = null; // 'left' or 'right' - tracks which side we last exited from
+        this.correctTrackDirection = null; // Track direction established from first valid lap
+        this.establishedCrossingPattern = null; // Store the expected crossing pattern
+        this.lapCount = 0; // Track number of completed laps
+        
         // Reset protection to prevent immediate movement after reset
         this.justReset = false;
     }
@@ -146,33 +152,126 @@ class Car {
     }
     
     checkLapCompletion() {
-        if (this.track.checkStartLineCrossing(
+        const crossingInfo = this.track.checkStartLineCrossing(
             this.previousPosition.x, this.previousPosition.y,
             this.x, this.y
-        )) {
+        );
+
+        if (crossingInfo && crossingInfo.crossed) {
+            console.log('🔍 Car: Line crossed', crossingInfo);
+            
             if (this.currentLapStartTime !== null) {
-                // Check if enough time has passed to avoid immediate completion
+                // Check if enough time has passed and direction is valid
                 const currentTime = Date.now();
                 const timeSinceStart = currentTime - this.currentLapStartTime;
                 
-                if (timeSinceStart > 3000) { // At least 3 seconds must pass
-                    // Lap completed
+                console.log(`🔍 Car: Lap in progress - Time: ${timeSinceStart}ms | From: ${crossingInfo.fromSide} → To: ${crossingInfo.toSide} | LastExit: ${this.lastExitSide} | ValidDirection: ${crossingInfo.validDirection}`);
+                
+                // ANTI-CHEAT VALIDATION: More sophisticated direction checking
+                let isCheatAttempt = false;
+                let cheatReason = '';
+                
+                // Check if car direction matches track direction (using arrows)
+                const isDirectionCorrect = this.track.isCarDirectionCorrect(this.x, this.y, this.angle);
+                if (!isDirectionCorrect) {
+                    isCheatAttempt = true;
+                    cheatReason = 'Wrong direction (against track arrows)';
+                    console.log('❌ Car: Wrong direction detected - car is going against track arrows');
+                }
+                
+                // After first lap, establish the expected crossing pattern
+                if (this.lapCount === 0) {
+                    // First lap - establish the pattern
+                    this.establishedCrossingPattern = `${crossingInfo.fromSide}->${crossingInfo.toSide}`;
+                    console.log(`📝 Car: Established crossing pattern: ${this.establishedCrossingPattern}`);
+                } else {
+                    // Subsequent laps - validate against established pattern
+                    const currentPattern = `${crossingInfo.fromSide}->${crossingInfo.toSide}`;
+                    
+                    if (currentPattern !== this.establishedCrossingPattern) {
+                        console.log(`🚨 Car: WRONG DIRECTION DETECTED!`);
+                        console.log(`  - Expected pattern: ${this.establishedCrossingPattern}`);
+                        console.log(`  - Current pattern: ${currentPattern}`);
+                        console.log(`  - This indicates player is going the wrong way!`);
+                        isCheatAttempt = true;
+                        cheatReason = 'wrong-direction';
+                    }
+                }
+                
+                // Additional shortcut detection based on time
+                if (this.lastExitSide && crossingInfo.toSide === this.lastExitSide && timeSinceStart < 5000) {
+                    console.log(`🚨 Car: POTENTIAL SHORTCUT DETECTED!`);
+                    console.log(`  - Last exit was to: ${this.lastExitSide}`);
+                    console.log(`  - Now trying to return to same side: ${crossingInfo.toSide}`);
+                    console.log(`  - Time since start: ${timeSinceStart}ms (minimum 5000ms for valid lap)`);
+                    isCheatAttempt = true;
+                    cheatReason = 'shortcut';
+                }
+                
+                // For direction validation, we only care about crossing direction (validDirection from track)
+                // Don't validate specific crossing patterns - just ensure proper track direction
+                
+                if (timeSinceStart > 3000 && crossingInfo.validDirection && !isCheatAttempt) {
+                    // Valid lap completed - crossed from one side to the other AND not returning to same exit side
                     const lapTime = currentTime - this.currentLapStartTime;
                     this.lapCompleted = true;
+                    
+                    console.log(`🏁 Car: ✅ Valid lap completed in ${lapTime}ms`);
+                    console.log(`🏁 Car: Direction validation passed - crossed from ${crossingInfo.fromSide} to ${crossingInfo.toSide}`);
+                    console.log(`🏁 Car: Anti-cheat validation passed - pattern matches: ${this.establishedCrossingPattern}`);
+                    
+                    // Increment lap count
+                    this.lapCount++;
+                    console.log(`� Car: Lap ${this.lapCount} completed`);
+                    
+                    // Update lastExitSide for the next lap - this should be the side we're going TO
+                    this.lastExitSide = crossingInfo.toSide;
+                    console.log(`📝 Car: Updated lastExitSide to: ${this.lastExitSide} for next lap`);
                     
                     // Trigger lap completion event
                     if (window.game && window.game.onLapCompleted) {
                         window.game.onLapCompleted(lapTime);
                     }
                     
-                    // Start new lap
-                    this.currentLapStartTime = currentTime;
+                    // DON'T start new lap immediately - let the game handle it
+                    // The game will call startLap() after handling the completion
+                } else if (timeSinceStart <= 3000) {
+                    console.log(`⏰ Car: ❌ Crossing too soon (${timeSinceStart}ms < 3000ms)`);
+                } else if (!crossingInfo.validDirection) {
+                    console.log(`🚫 Car: ❌ Invalid direction - going wrong way on track`);
+                    
+                    // Show error toast for wrong track direction  
+                    if (window.game && window.game.ui && window.game.ui.showToast) {
+                        window.game.ui.showToast('🚫 Volta Inválida: Direção incorreta!', 'error', 4000);
+                    }
+                } else if (isCheatAttempt) {
+                    // CHEAT DETECTED - Show red overlay and end session
+                    console.log(`🚫 Car: ❌ CHEAT DETECTED - ${cheatReason}`);
+                    
+                    // End the current session
+                    if (window.game && window.game.endSession) {
+                        window.game.endSession();
+                    }
+                    
+                    // Show red overlay instead of toast
+                    if (window.game && window.game.ui && window.game.ui.showOverlay) {
+                        window.game.ui.showOverlay('cheat');
+                    }
+                    
+                    // Reset the lap state
+                    this.currentLapStartTime = null;
                     this.lapCompleted = false;
                 }
             } else {
                 // First time crossing - start lap
+                console.log('🏁 Car: 🆕 Starting first lap');
+                console.log(`🏁 Car: Initial crossing - From: ${crossingInfo.fromSide} → To: ${crossingInfo.toSide}`);
                 this.currentLapStartTime = Date.now();
                 this.lapCompleted = false;
+                
+                // Set initial exit side (but don't set direction yet - wait for first valid lap)
+                this.lastExitSide = crossingInfo.toSide;
+                console.log(`📝 Car: Set initial exit side: ${this.lastExitSide}`);
             }
         }
     }
@@ -232,8 +331,11 @@ class Car {
     
     // Start a new lap
     startLap() {
+        console.log(`🔄 Car: startLap() called - BEFORE: lastExitSide = ${this.lastExitSide}, trackDirection = ${this.correctTrackDirection}`);
         this.currentLapStartTime = Date.now();
         this.lapCompleted = false;
+        // DON'T reset lastExitSide or correctTrackDirection - we need to remember for anti-cheat!
+        console.log(`🔄 Car: startLap() - AFTER: lastExitSide = ${this.lastExitSide}, trackDirection = ${this.correctTrackDirection}`);
     }
     
     // Handle input

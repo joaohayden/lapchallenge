@@ -379,6 +379,9 @@ class UI {
         const content = document.getElementById('overlayContent');
         let html = '';
         
+        // Store the overlay type for later reference
+        this.currentOverlayType = type;
+        
         if (type === 'crash') {
             html += `<div class="overlay-header">`;
             html += `<i class="overlay-icon">💥</i>`;
@@ -417,6 +420,18 @@ class UI {
             html += `</div>`;
             html += `<div class="overlay-footer">`;
             html += `<div class="overlay-instruction">Pressione <kbd>ESPAÇO</kbd> para continuar</div>`;
+            html += `</div>`;
+        } else if (type === 'cheat') {
+            html += `<div class="overlay-header overlay-header-red">`;
+            html += `<i class="overlay-icon">🚫</i>`;
+            html += `<h2 class="overlay-title">DIREÇÃO INCORRETA!</h2>`;
+            html += `</div>`;
+            html += `<div class="overlay-body">`;
+            html += `<div class="overlay-message">Você está indo na direção errada!</div>`;
+            html += `<div class="overlay-submessage">Siga as setas verdes da pista</div>`;
+            html += `</div>`;
+            html += `<div class="overlay-footer">`;
+            html += `<div class="overlay-instruction">Pressione <kbd>ESPAÇO</kbd> para reiniciar a sessão</div>`;
             html += `</div>`;
         }
         
@@ -493,6 +508,9 @@ class UI {
             overlay.style.visibility = 'hidden'; // Adiciona mais uma camada de ocultação
             console.log('Game overlay hidden');
         }
+        
+        // Clear the overlay type
+        this.currentOverlayType = null;
     }
     
     getGameMode() {
@@ -841,6 +859,33 @@ class UI {
             existingToast.remove();
         }
         
+        // Define colors based on type
+        let backgroundColor, borderColor, shadowColor, textColor;
+        
+        switch(type) {
+            case 'error':
+            case 'invalid':
+                backgroundColor = 'rgba(220, 53, 69, 0.95)'; // Red
+                borderColor = '#dc3545';
+                shadowColor = 'rgba(220, 53, 69, 0.3)';
+                textColor = '#fff';
+                break;
+            case 'success':
+                backgroundColor = 'rgba(40, 167, 69, 0.95)'; // Green
+                borderColor = '#28a745';
+                shadowColor = 'rgba(40, 167, 69, 0.3)';
+                textColor = '#fff';
+                break;
+            case 'warning':
+            case 'info':
+            default:
+                backgroundColor = 'rgba(255, 193, 7, 0.95)'; // Yellow
+                borderColor = '#ffc107';
+                shadowColor = 'rgba(255, 193, 7, 0.3)';
+                textColor = '#333';
+                break;
+        }
+        
         // Create toast element
         const toast = document.createElement('div');
         toast.className = `game-toast ${type}`;
@@ -850,16 +895,16 @@ class UI {
             bottom: 30px;
             left: 50%;
             transform: translateX(-50%);
-            background: rgba(255, 193, 7, 0.95);
-            color: #333;
+            background: ${backgroundColor};
+            color: ${textColor};
             padding: 12px 20px;
             border-radius: 8px;
             font-family: 'Courier New', monospace;
             font-size: 0.9rem;
             font-weight: 600;
             z-index: 1001;
-            border: 2px solid #ffc107;
-            box-shadow: 0 4px 12px rgba(255, 193, 7, 0.3);
+            border: 2px solid ${borderColor};
+            box-shadow: 0 4px 12px ${shadowColor};
             animation: toastSlideIn 0.3s ease;
         `;
         

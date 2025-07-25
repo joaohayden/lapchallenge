@@ -125,10 +125,13 @@ class Track {
         this.ctx.closePath();
         this.ctx.stroke();
         this.ctx.setLineDash([]);
-        
+
+        // Draw direction arrows on track
+        this.drawDirectionArrows();
+
         // Draw start/finish line
         this.drawStartLine();
-        
+
         // Draw track boundaries
         this.drawBoundaries();
     }
@@ -214,6 +217,54 @@ class Track {
         
         // Draw outer tolerance boundary (blue line MORE outside the track)
         this.drawTolerancePath(this.outerPath, -tolerance, '#0066FF');
+    }
+
+    drawDirectionArrows() {
+        // Draw minimalist chevron arrows at intervals along the track center line
+        const arrowSpacing = 8; // Menos setas para ficar mais limpo
+        const chevronSize = 6; // Menor e mais discreto
+        
+        this.ctx.strokeStyle = '#00FF00'; // Verde
+        this.ctx.lineWidth = 2; // Linha mais fina e elegante
+        this.ctx.lineCap = 'round'; // Pontas arredondadas para ficar mais suave
+        
+        for (let i = 0; i < this.centerPoints.length; i += arrowSpacing) {
+            const current = this.centerPoints[i];
+            const next = this.centerPoints[(i + 1) % this.centerPoints.length];
+            
+            // Calculate direction vector
+            const dx = next.x - current.x;
+            const dy = next.y - current.y;
+            const length = Math.sqrt(dx * dx + dy * dy);
+            
+            if (length > 0) {
+                // Normalize direction
+                const dirX = dx / length;
+                const dirY = dy / length;
+                
+                // Calculate perpendicular for chevron wings
+                const perpX = -dirY;
+                const perpY = dirX;
+                
+                // Chevron minimalista: duas linhas simples formando >
+                const centerX = current.x;
+                const centerY = current.y;
+                
+                // Ponto central para onde as linhas convergem
+                const tipX = centerX + dirX * chevronSize;
+                const tipY = centerY + dirY * chevronSize;
+                
+                // Draw simple minimalist chevron
+                this.ctx.beginPath();
+                // Linha superior
+                this.ctx.moveTo(centerX - dirX * 2 + perpX * chevronSize, centerY - dirY * 2 + perpY * chevronSize);
+                this.ctx.lineTo(tipX, tipY);
+                // Linha inferior
+                this.ctx.moveTo(tipX, tipY);
+                this.ctx.lineTo(centerX - dirX * 2 - perpX * chevronSize, centerY - dirY * 2 - perpY * chevronSize);
+                this.ctx.stroke();
+            }
+        }
     }
     
     drawTolerancePath(path, offset, color) {
@@ -365,8 +416,45 @@ class Track {
         
         return { index: closestIndex, distance: closestDistance };
     }
+
+    // Get the expected direction at a given position on track
+    getExpectedDirection(x, y) {
+        const closest = this.getClosestCenterPoint(x, y);
+        const currentPoint = this.centerPoints[closest.index];
+        const nextPoint = this.centerPoints[(closest.index + 1) % this.centerPoints.length];
+        
+        // Calculate expected direction vector
+        const dx = nextPoint.x - currentPoint.x;
+        const dy = nextPoint.y - currentPoint.y;
+        const length = Math.sqrt(dx * dx + dy * dy);
+        
+        if (length > 0) {
+            return {
+                x: dx / length,
+                y: dy / length,
+                angle: Math.atan2(dy, dx)
+            };
+        }
+        
+        return { x: 0, y: 0, angle: 0 };
+    }
+
+    // Check if car direction matches track direction
+    isCarDirectionCorrect(carX, carY, carAngle, tolerance = Math.PI / 3) {
+        const expectedDir = this.getExpectedDirection(carX, carY);
+        
+        // Calculate angle difference
+        let angleDiff = Math.abs(carAngle - expectedDir.angle);
+        
+        // Normalize angle difference to [0, PI]
+        if (angleDiff > Math.PI) {
+            angleDiff = 2 * Math.PI - angleDiff;
+        }
+        
+        return angleDiff <= tolerance;
+    }
     
-    // Check if car crossed start/finish line
+    // Check if car crossed start/finish line with direction validation
     checkStartLineCrossing(prevX, prevY, currentX, currentY) {
         const startPoint = this.centerPoints[0];
         const nextPoint = this.centerPoints[1];
@@ -391,11 +479,51 @@ class Track {
             y: startPoint.y - perpY * halfWidth
         };
         
-        // Check line intersection
-        return this.lineIntersection(
+        // Check if line was crossed
+        const crossed = this.lineIntersection(
             prevX, prevY, currentX, currentY,
             lineStart.x, lineStart.y, lineEnd.x, lineEnd.y
         );
+        
+        if (crossed) {
+            // Calculate which side of the line each position is on
+            const prevSide = this.getLineSide(prevX, prevY, lineStart, lineEnd);
+            const currentSide = this.getLineSide(currentX, currentY, lineStart, lineEnd);
+            
+            console.log(`🔍 Track: Start line crossed!`);
+            console.log(`  Previous pos: (${prevX.toFixed(1)}, ${prevY.toFixed(1)}) - Side: ${prevSide}`);
+            console.log(`  Current pos: (${currentX.toFixed(1)}, ${currentY.toFixed(1)}) - Side: ${currentSide}`);
+            console.log(`  Line start: (${lineStart.x.toFixed(1)}, ${lineStart.y.toFixed(1)})`);
+            console.log(`  Line end: (${lineEnd.x.toFixed(1)}, ${lineEnd.y.toFixed(1)})`);
+            console.log(`  🔍 VALIDATION CHECK:`);
+            console.log(`    - prevSide: "${prevSide}"`);
+            console.log(`    - currentSide: "${currentSide}"`);
+            console.log(`    - Are they different? ${prevSide !== currentSide}`);
+            console.log(`    - Valid direction result: ${prevSide !== currentSide}`);
+            
+            const validDirection = prevSide !== currentSide;
+            
+            return {
+                crossed: true,
+                fromSide: prevSide,
+                toSide: currentSide,
+                validDirection: validDirection // Only valid if crossing from one side to another
+            };
+        }
+        
+        return { crossed: false };
+    }
+    
+    // Determine which side of the start line a point is on
+    getLineSide(x, y, lineStart, lineEnd) {
+        // Use cross product to determine side
+        const crossProduct = (lineEnd.x - lineStart.x) * (y - lineStart.y) - 
+                            (lineEnd.y - lineStart.y) * (x - lineStart.x);
+        const side = crossProduct > 0 ? 'left' : 'right';
+        
+        console.log(`  getLineSide: Point (${x.toFixed(1)}, ${y.toFixed(1)}) - CrossProduct: ${crossProduct.toFixed(2)} - Side: ${side}`);
+        
+        return side;
     }
     
     lineIntersection(x1, y1, x2, y2, x3, y3, x4, y4) {

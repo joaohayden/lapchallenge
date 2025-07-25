@@ -24,7 +24,6 @@ class Game {
         this.lastTime = 0;
         this.deltaTime = 0;
         this.gameStartTime = 0;
-        this.currentLapStartTime = 0;
         
         // Input handling
         this.keys = {};
@@ -94,19 +93,28 @@ class Game {
                     // Add a small delay to prevent synchronous re-processing
                     setTimeout(() => {
                         if (this.isWaitingForContinue) {
-                            // Esconde overlay e continua
-                            if (this.ui && typeof this.ui.hideOverlay === 'function') {
+                            // Check if it's a cheat overlay
+                            if (this.ui && this.ui.currentOverlayType === 'cheat') {
+                                // Cheat detected - reset the entire session
                                 this.ui.hideOverlay();
-                            }
-                            this.isWaitingForContinue = false;
-                            
-                            // Se estiver no estado de crash, reiniciar a volta
-                            if (this.isCrashed) {
-                                this.isCrashed = false; // Reset flag
-                                this.restartAfterCrash();
+                                this.isWaitingForContinue = false;
+                                this.resetGame(); // Full reset for cheat
                             } else {
-                                // Caso contrário, continuar para próxima volta
-                                this.continueFromLapComplete();
+                                // Normal overlay handling
+                                // Esconde overlay e continua
+                                if (this.ui && typeof this.ui.hideOverlay === 'function') {
+                                    this.ui.hideOverlay();
+                                }
+                                this.isWaitingForContinue = false;
+                                
+                                // Se estiver no estado de crash, reiniciar a volta
+                                if (this.isCrashed) {
+                                    this.isCrashed = false; // Reset flag
+                                    this.restartAfterCrash();
+                                } else {
+                                    // Caso contrário, continuar para próxima volta
+                                    this.continueFromLapComplete();
+                                }
                             }
                         } else if (!this.isRunning) {
                             // Start game from menu (prioridade para iniciar o jogo)
@@ -278,7 +286,6 @@ class Game {
         this.isRunning = true;
         this.isPaused = false;
         this.gameStartTime = Date.now();
-        this.currentLapStartTime = Date.now();
         this.gameJustStarted = Date.now(); // Mark when game started
         
         // Reset car
@@ -358,9 +365,8 @@ class Game {
                 this.ui.hideOverlay();
             }
             
-            // Start new lap timing
-            this.currentLapStartTime = Date.now();
-            this.gameJustStarted = Date.now(); // Reset timer to prevent immediate crash detection
+            // Reset timer to prevent immediate crash detection
+            this.gameJustStarted = Date.now();
             
             // Reiniciar gameLoop se necessário
             this.lastTime = performance.now();
@@ -387,7 +393,6 @@ class Game {
         // Start game properly (same logic as start())
         this.isRunning = true;
         this.gameStartTime = Date.now();
-        this.currentLapStartTime = Date.now();
         
         // Start car lap
         this.car.startLap();
@@ -447,6 +452,24 @@ class Game {
         
         // Reset UI
         this.ui.resetGame();
+        
+        // Render static scene
+        this.render();
+    }
+    
+    endSession() {
+        console.log('Ending session due to cheat detection...');
+        
+        this.isRunning = false;
+        this.isPaused = false;
+        this.isWaitingForContinue = true; // Wait for user to restart
+        this.isCrashed = false;
+        
+        // Stop the car but don't reset position yet
+        this.car.speed = 0;
+        this.car.velocity = { x: 0, y: 0 };
+        
+        // Don't reset lap count or stats yet - let user see the overlay first
         
         // Render static scene
         this.render();
@@ -579,6 +602,10 @@ class Game {
             // In classic mode, just pause - don't reset car here (will be reset in continueFromLapComplete)
             console.log('Game: Pausando para aguardar input do usuário no modo clássico');
             this.pauseForLapComplete();
+        } else {
+            // In continuous mode, automatically start a new lap
+            console.log('Game: Modo contínuo - iniciando nova volta automaticamente');
+            this.car.startLap();
         }
         
         this.ui.onLapCompleted(lapTime);
