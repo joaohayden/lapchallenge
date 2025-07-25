@@ -225,35 +225,56 @@ body {
 }
 
 /* Título do jogo */
+.title-center {
+    text-align: center;
+}
+
 .pixel-title-box {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    gap: 3px;
-    margin-bottom: 12px;
+    display: inline-block;
+    background: #000000;
+    padding: 8px 12px;
+    border-radius: 6px;
+    margin-bottom: 8px;
     margin-top: clamp(16px, 4vh, 40px);
 }
 
 .pixel-title-text {
     font-size: clamp(1rem, 3.5vw, 2rem);
     font-weight: bold;
-    color: black;
+    color: #ffffff;
     letter-spacing: 2px;
-    margin-bottom: 0;
+    margin: 0;
+}
+
+.subtitle-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    gap: 20px;
+    margin-bottom: 12px;
+    flex-wrap: wrap;
 }
 
 .tagline {
-    color: #666;
-    font-size: clamp(0.65rem, 1.3vw, 0.9rem);
-    margin-bottom: 0;
+    color: #333;
+    font-size: clamp(0.75rem, 1.5vw, 1rem);
+    margin: 0;
+    line-height: 1.2;
+    font-weight: 500;
 }
 
 #next-track-time {
-    text-align: center;
-    color: #666;
-    font-size: 0.85rem;
-    margin-bottom: 0;
+    color: #333;
+    font-size: clamp(0.75rem, 1.5vw, 1rem);
+    margin: 0;
+    line-height: 1.2;
+    font-weight: 500;
+}
+
+#next-track-time strong {
+    color: #000;
+    font-weight: bold;
+    font-size: 1.1em;
 }
 
 /* Cards de tempo no topo */

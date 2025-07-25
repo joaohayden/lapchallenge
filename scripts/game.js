@@ -56,7 +56,7 @@ class Game {
         // Make game globally accessible for UI callbacks
         window.game = this;
         
-        console.log('HotLap Daily game initialized');
+        console.log('speedlaps.run game initialized');
     }
     
     setupInputHandlers() {
@@ -633,5 +633,5 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }, 1000);
     
-    console.log('HotLap Daily loaded successfully!');
+    console.log('speedlaps.run loaded successfully!');
 });

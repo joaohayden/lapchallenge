@@ -1063,7 +1063,7 @@ class UI {
         
         const nextTrackLabel = document.getElementById('next-track-label');
         if (nextTrackLabel) {
-            nextTrackLabel.textContent = `Próxima pista em: ${hours}h ${minutes}m ${seconds}s`;
+            nextTrackLabel.innerHTML = `próxima pista em: <strong>${hours}h ${minutes}m ${seconds}s</strong>`;
         }
     }
     

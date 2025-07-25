@@ -10,10 +10,10 @@ class Car {
         this.y = track.startLine.y;
         this.angle = track.startLine.angle;
         this.speed = 0;
-        this.maxSpeed = 3;
-        this.acceleration = 0.1;
+        this.maxSpeed = 1.8; // Reduced from 3 to match reference game (1.82)
+        this.acceleration = 0.08; // Reduced from 0.1 for smoother acceleration
         this.deceleration = 0.05;
-        this.turnSpeed = 0.08;
+        this.turnSpeed = 0.06; // Slightly reduced for better control
         
         // Physics
         this.velocity = { x: 0, y: 0 };
