@@ -205,44 +205,48 @@
 
 body {
     background: white;
-    min-height: 100vh;
+    height: 100vh;
     padding: 0;
     margin: 0;
-    overflow-x: hidden;
+    overflow: hidden;
     display: flex;
     flex-direction: column;
     align-items: center;
-    justify-content: flex-start;
+    justify-content: center;
 }
 
 .game-container {
-    flex: 1;
-    display: flex;
-    flex-direction: column;
-    max-width: 1200px;
+    display: grid;
+    grid-template-rows: auto 1fr auto;
+    grid-template-areas: 
+        "header"
+        "main"
+        "footer";
+    height: 100vh;
     width: 100%;
+    max-width: 1200px;
     margin: 0 auto;
-    min-height: 0;
-    padding: 10px;
+    padding: clamp(5px, 1vh, 15px);
+    box-sizing: border-box;
 }
 
 /* Título do jogo */
 .title-center {
+    grid-area: header;
     text-align: center;
-    position: fixed;
-    left: 50%;
-    transform: translateX(-50%);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: clamp(5px, 1vh, 15px) 0;
     z-index: 200;
-    width: auto;
-    margin: 0;
 }
 
 .pixel-title-box {
     display: inline-block;
     background: #000000;
     padding: 6px 12px;
-    margin-top: clamp(8px, 2.5vh, 32px);
-    margin-bottom: 8px;
+    margin: 0;
     line-height: 1;
 }
 
@@ -255,7 +259,7 @@ body {
 }
 
 .pixel-title-logo {
-    height: clamp(2rem, 5vh, 3rem);
+    height: clamp(2rem, 4vh, 3rem);
     width: auto;
     display: block;
     margin: 0;
@@ -263,13 +267,13 @@ body {
 }
 
 .subtitle-row {
+    grid-area: footer;
     display: flex;
-    justify-content: space-between;
-    align-items: baseline;
+    justify-content: center;
+    align-items: center;
     gap: 20px;
-    margin-bottom: 12px;
+    padding: clamp(5px, 1vh, 15px) 0;
     flex-wrap: wrap;
-    position: relative;
     z-index: 200;
 }
 
@@ -382,19 +386,17 @@ body {
 
 /* Layout principal do jogo - 3 colunas */
 .game-ui {
+    grid-area: main;
     display: grid;
     grid-template-columns: 250px 1fr 200px;
     grid-template-areas: "controls game times";
     gap: 15px;
-    align-items: stretch;
+    align-items: center;
     justify-content: center;
-    justify-self: center;
-    flex: 1;
-    min-height: 0;
     width: 100%;
     max-width: 1200px;
-    margin: 2px auto 0 auto;
-    height: min(calc(100vh - 150px), 600px);
+    margin: 0 auto;
+    padding: clamp(5px, 1vh, 15px) 0;
 }
 
 /* SEÇÃO 1: CARD DO PILOTO E CONTROLES */
@@ -1280,18 +1282,84 @@ body {
     }
 }
 
+/* Ajustes específicos para altura de viewport pequena (notebooks) */
+@media (max-height: 700px) and (min-width: 769px) {
+    .title-center {
+        padding: 5px 0;
+    }
+    
+    .pixel-title-text {
+        font-size: clamp(1.2rem, 2.5vw, 1.6rem);
+    }
+    
+    .subtitle-row {
+        padding: 5px 0;
+    }
+    
+    .game-ui {
+        padding: 5px 0;
+    }
+}
+
+/* Ajustes para altura muito pequena (notebooks pequenos) */
+@media (max-height: 600px) and (min-width: 769px) {
+    .title-center {
+        padding: 2px 0;
+    }
+    
+    .pixel-title-box {
+        padding: 4px 8px;
+    }
+    
+    .pixel-title-text {
+        font-size: clamp(1rem, 2vw, 1.4rem);
+    }
+    
+    .subtitle-row {
+        padding: 2px 0;
+    }
+    
+    .game-ui {
+        padding: 2px 0;
+    }
+    
+    .tagline, #next-track-time {
+        font-size: clamp(0.7rem, 1.2vw, 0.9rem);
+    }
+}
+
 @media (max-width: 768px) {
     body {
-        padding: 5px;
+        padding: 0;
+        overflow-y: auto;
+    }
+
+    .game-container {
+        height: auto;
+        min-height: 100vh;
+        grid-template-rows: auto auto 1fr auto;
+        grid-template-areas: 
+            "header"
+            "times"
+            "main"
+            "footer";
+        padding: 10px;
+    }
+
+    .title-center {
+        padding: 10px 0;
     }
 
     .pixel-title-box {
-        margin-top: clamp(10px, 3vh, 30px);
-        margin-bottom: 10px;
+        margin: 0;
     }
 
     .pixel-title-text {
         font-size: clamp(1.5rem, 5vw, 2rem);
+    }
+
+    .subtitle-row {
+        padding: 10px 0;
     }
 
     .tagline {
@@ -1299,7 +1367,9 @@ body {
     }
 
     .top-times-row {
-        margin-top: 10px;
+        grid-area: times;
+        margin: 0;
+        padding: 10px 0;
     }
 
     .top-times {
@@ -1331,9 +1401,10 @@ body {
 
     .game-ui {
         grid-template-columns: 1fr;
+        grid-template-areas: "game" "controls";
         gap: 10px;
-        width: 100%;
-        margin: 0;
+        align-items: stretch;
+        padding: 0;
     }
 
     .times-column {
