@@ -47,11 +47,14 @@ class Car {
     }
     
     update(deltaTime) {
+        // Limit deltaTime to prevent large jumps (inspired by reference implementation)
+        const limitedDeltaTime = Math.min(deltaTime, 100);
+        
         // Normalize deltaTime to 60 FPS standard (16.67ms per frame)
         // This ensures consistent speed across different devices and frame rates
         const TARGET_FPS = 60;
         const TARGET_FRAME_TIME = 1000 / TARGET_FPS; // 16.67ms
-        const timeMultiplier = deltaTime / TARGET_FRAME_TIME;
+        const timeMultiplier = limitedDeltaTime / TARGET_FRAME_TIME;
         
         this.previousPosition.x = this.x;
         this.previousPosition.y = this.y;
@@ -157,6 +160,12 @@ class Car {
         // Keep car within canvas bounds
         this.x = Math.max(this.width/2, Math.min(this.canvas.width - this.width/2, this.x));
         this.y = Math.max(this.height/2, Math.min(this.canvas.height - this.height/2, this.y));
+        
+        // Monitor significant position changes (performance debugging)
+        const positionChange = Math.hypot(this.x - this.previousPosition.x, this.y - this.previousPosition.y);
+        if (positionChange > 100 * this.maxSpeed * 1.5 && deltaTime > 0) {
+            console.warn(`[Car] Large position change detected: ${positionChange.toFixed(2)} units (deltaTime: ${limitedDeltaTime.toFixed(2)}ms)`);
+        }
         
         // Check for lap completion
         this.checkLapCompletion();
