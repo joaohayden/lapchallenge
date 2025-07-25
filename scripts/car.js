@@ -67,25 +67,74 @@ class Car {
         }
         
         // Convert angle to velocity
-        this.velocity.x = Math.cos(this.angle) * this.speed;
-        this.velocity.y = Math.sin(this.angle) * this.speed;
+        // Calculate new position
+        const newX = this.x + Math.cos(this.angle) * this.speed;
+        const newY = this.y + Math.sin(this.angle) * this.speed;
         
-        // Update position
-        this.x += this.velocity.x;
-        this.y += this.velocity.y;
+        // Check if movement is allowed
+        const gameMode = window.game?.ui?.getGameMode ? window.game.ui.getGameMode() : 'classic';
+        const tolerance = gameMode === 'continuous' ? 8 : 0; // Match the blue line tolerance
         
-        // Check if on track and apply friction
-        const onTrack = this.track.isOnTrack(this.x, this.y);
-        if (!onTrack) {
-            // Off track - reduce speed significantly
-            this.speed *= this.offTrackFriction;
-            this.velocity.x *= this.offTrackFriction;
-            this.velocity.y *= this.offTrackFriction;
+        // In continuous mode, check if new position is within blue boundaries
+        if (gameMode === 'continuous') {
+            const canMove = this.track.isOnTrack(newX, newY, tolerance);
+            if (canMove) {
+                // Movement allowed - update position
+                this.x = newX;
+                this.y = newY;
+                this.velocity.x = Math.cos(this.angle) * this.speed;
+                this.velocity.y = Math.sin(this.angle) * this.speed;
+            } else {
+                // Movement blocked by blue boundaries - don't update position
+                this.velocity.x = 0;
+                this.velocity.y = 0;
+            }
         } else {
-            // On track - normal friction
-            this.speed *= this.friction;
-            this.velocity.x *= this.friction;
-            this.velocity.y *= this.friction;
+            // Classic mode - normal movement
+            this.x = newX;
+            this.y = newY;
+            this.velocity.x = Math.cos(this.angle) * this.speed;
+            this.velocity.y = Math.sin(this.angle) * this.speed;
+        }
+        
+        // Check if on track and apply friction  
+        const onTrack = this.track.isOnTrack(this.x, this.y, tolerance);
+        
+        // In continuous mode, check if car is in the blue tolerance zone
+        if (gameMode === 'continuous') {
+            const onOriginalTrack = this.track.isOnTrack(this.x, this.y, 0); // Check without tolerance
+            const inToleranceZone = onTrack && !onOriginalTrack; // Within blue zone but not on original track
+            
+            if (inToleranceZone) {
+                // Apply moderate friction penalty for tolerance zone
+                // Much less aggressive than before - just like being "off track" but not blocking
+                this.speed *= this.offTrackFriction; // Use the same as normal off-track (0.85)
+                this.velocity.x *= this.offTrackFriction;
+                this.velocity.y *= this.offTrackFriction;
+            } else if (onTrack) {
+                // On original track - apply normal friction
+                this.speed *= this.friction;
+                this.velocity.x *= this.friction;
+                this.velocity.y *= this.friction;
+            } else {
+                // Shouldn't happen in continuous mode due to movement blocking
+                this.speed *= this.offTrackFriction;
+                this.velocity.x *= this.offTrackFriction;
+                this.velocity.y *= this.offTrackFriction;
+            }
+        } else {
+            // Classic mode - original logic
+            if (!onTrack) {
+                // Off track - reduce speed significantly
+                this.speed *= this.offTrackFriction;
+                this.velocity.x *= this.offTrackFriction;
+                this.velocity.y *= this.offTrackFriction;
+            } else {
+                // On track - normal friction
+                this.speed *= this.friction;
+                this.velocity.x *= this.friction;
+                this.velocity.y *= this.friction;
+            }
         }
         
         // Keep car within canvas bounds
@@ -179,9 +228,6 @@ class Car {
         // Reset velocidade para zero no modo contínuo também
         this.speed = 0;
         this.velocity = { x: 0, y: 0 };
-        this.currentLapStartTime = null;
-        this.lapCompleted = false;
-        this.justReset = true; // Prevent immediate acceleration
     }
     
     // Start a new lap

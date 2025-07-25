@@ -17,6 +17,7 @@ class Game {
         this.isShowingContinuousStats = false; // Track if showing continuous mode stats
         this.isProcessingSpaceKey = false; // Prevent double processing of space key
         this.gameJustStarted = 0; // Timestamp when game was started to prevent immediate stop
+        this.mode = 'classic'; // Current game mode
         this.debug = false;
         
         // Timing
@@ -271,6 +272,9 @@ class Game {
     start() {
         if (this.isRunning) return;
         
+        // Update current mode
+        this.mode = this.ui.getGameMode ? this.ui.getGameMode() : 'classic';
+        
         this.isRunning = true;
         this.isPaused = false;
         this.gameStartTime = Date.now();
@@ -324,8 +328,8 @@ class Game {
                 console.log('Game: Resetando carro para modo clássico');
                 this.car.reset();
                 
-                // Check if reset position is on track
-                const isOnTrack = this.track.isOnTrack(this.car.x, this.car.y);
+                // Check if reset position is on track (sempre sem tolerância no reset)
+                const isOnTrack = this.track.isOnTrack(this.car.x, this.car.y, 0);
                 console.log(`Game: Posição após reset está na pista? ${isOnTrack} - X: ${this.car.x}, Y: ${this.car.y}`);
                 
                 this.car.startLap(); // Garantir que startLap seja chamado após reset
@@ -497,7 +501,9 @@ class Game {
                 return;
             }
             
-            if (!this.track.isOnTrack(this.car.x, this.car.y)) {
+            // No modo clássico, crash se sair da pista (sem tolerância)
+            // No modo contínuo, não há crash, apenas redução de velocidade com tolerância
+            if (!this.track.isOnTrack(this.car.x, this.car.y, 0)) {
                 console.log(`Game: Crash detected at X: ${this.car.x}, Y: ${this.car.y}`);
                 this.isRunning = false;
                 this.isPaused = false;
@@ -552,7 +558,9 @@ class Game {
         this.ctx.fillText(`Speed: ${this.car.speed.toFixed(2)}`, 10, 20);
         this.ctx.fillText(`Angle: ${(this.car.angle * 180 / Math.PI).toFixed(1)}°`, 10, 35);
         this.ctx.fillText(`Position: ${this.car.x.toFixed(1)}, ${this.car.y.toFixed(1)}`, 10, 50);
-        this.ctx.fillText(`On Track: ${this.track.isOnTrack(this.car.x, this.car.y)}`, 10, 65);
+        const gameMode = this.ui.getGameMode ? this.ui.getGameMode() : 'classic';
+        const tolerance = gameMode === 'continuous' ? 3 : 0;
+        this.ctx.fillText(`On Track: ${this.track.isOnTrack(this.car.x, this.car.y, tolerance)}`, 10, 65);
         
         // Show FPS
         const fps = Math.round(1000 / this.deltaTime);

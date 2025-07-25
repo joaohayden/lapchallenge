@@ -198,13 +198,142 @@ class Track {
         }
         this.ctx.closePath();
         this.ctx.stroke();
+        
+        // Draw blue tolerance boundaries in continuous mode
+        const gameMode = window.game && window.game.ui && window.game.ui.getGameMode ? window.game.ui.getGameMode() : 'classic';
+        if (gameMode === 'continuous') {
+            this.drawToleranceBoundaries();
+        }
+    }
+    
+    drawToleranceBoundaries() {
+        const tolerance = 8; // 8 pixels além das linhas vermelhas para não sobrepor
+        
+        // Draw inner tolerance boundary (blue line MORE inside the track)
+        this.drawTolerancePath(this.innerPath, tolerance, '#0066FF');
+        
+        // Draw outer tolerance boundary (blue line MORE outside the track)
+        this.drawTolerancePath(this.outerPath, -tolerance, '#0066FF');
+    }
+    
+    drawTolerancePath(path, offset, color) {
+        // Linha azul invisível - mantém a lógica mas não desenha nada
+        // A zona de tolerância funciona como a "zebra" da Fórmula 1
+        // Todo o código de detecção continua funcionando normalmente
+        
+        // Código comentado para manter invisível:
+        /*
+        this.ctx.strokeStyle = color;
+        this.ctx.lineWidth = 10; // Linha muito grossa
+        this.ctx.setLineDash([12, 6]); // Tracejado bem grosso
+        this.ctx.beginPath();
+        
+        for (let i = 0; i < path.length; i++) {
+            const current = path[i];
+            const next = path[(i + 1) % path.length];
+            const prev = path[i === 0 ? path.length - 1 : i - 1];
+            
+            // Calculate perpendicular direction
+            const dx = next.x - prev.x;
+            const dy = next.y - prev.y;
+            const length = Math.sqrt(dx * dx + dy * dy);
+            
+            if (length > 0) {
+                const perpX = -dy / length;
+                const perpY = dx / length;
+                
+                const offsetX = current.x + perpX * offset;
+                const offsetY = current.y + perpY * offset;
+                
+                if (i === 0) {
+                    this.ctx.moveTo(offsetX, offsetY);
+                } else {
+                    this.ctx.lineTo(offsetX, offsetY);
+                }
+            }
+        }
+        
+        this.ctx.closePath();
+        this.ctx.stroke();
+        this.ctx.setLineDash([]); // Reset to solid line
+        */
     }
     
     // Check if a point is on the track
-    isOnTrack(x, y) {
-        // Simple point-in-polygon test for track bounds
+    isOnTrack(x, y, tolerance = 0) {
+        if (tolerance > 0) {
+            // In continuous mode, check against the tolerance boundaries
+            return this.isWithinYellowBoundaries(x, y);
+        }
+        
+        // Original method for classic mode (no tolerance)
         return this.pointInPolygon(x, y, this.outerPath) && 
                !this.pointInPolygon(x, y, this.innerPath);
+    }
+    
+    // Check if point is within the tolerance boundaries
+    isWithinYellowBoundaries(x, y) {
+        // In continuous mode, the tolerance zone is the absolute limit
+        const tolerance = 8;
+        
+        // First check: is point within the original track?
+        const withinOriginalTrack = this.pointInPolygon(x, y, this.outerPath) && 
+                                   !this.pointInPolygon(x, y, this.innerPath);
+        
+        if (withinOriginalTrack) {
+            return true; // Always allow movement on the actual track
+        }
+        
+        // For points outside the track, check if they're within the tolerance zone limits
+        const distanceToOuterBoundary = this.getDistanceToPath(x, y, this.outerPath);
+        const distanceToInnerBoundary = this.getDistanceToPath(x, y, this.innerPath);
+        
+        // Only allow if within tolerance zone (between red and blue lines)
+        const withinOuterTolerance = distanceToOuterBoundary <= tolerance;
+        const withinInnerTolerance = distanceToInnerBoundary <= tolerance;
+        
+        return withinOuterTolerance || withinInnerTolerance;
+    }
+    
+    // Get minimum distance from point to a path
+    getDistanceToPath(x, y, path) {
+        let minDistance = Infinity;
+        
+        for (let i = 0; i < path.length; i++) {
+            const current = path[i];
+            const next = path[(i + 1) % path.length];
+            
+            const dist = this.distanceToLineSegment(x, y, current.x, current.y, next.x, next.y);
+            minDistance = Math.min(minDistance, dist);
+        }
+        
+        return minDistance;
+    }
+    
+    // Calculate distance from point to line segment
+    distanceToLineSegment(px, py, x1, y1, x2, y2) {
+        const dx = x2 - x1;
+        const dy = y2 - y1;
+        const length = Math.sqrt(dx * dx + dy * dy);
+        
+        if (length === 0) {
+            // Line segment is actually a point
+            const dpx = px - x1;
+            const dpy = py - y1;
+            return Math.sqrt(dpx * dpx + dpy * dpy);
+        }
+        
+        // Calculate the t parameter for the projection
+        const t = Math.max(0, Math.min(1, ((px - x1) * dx + (py - y1) * dy) / (length * length)));
+        
+        // Find the projection point
+        const projX = x1 + t * dx;
+        const projY = y1 + t * dy;
+        
+        // Calculate distance to projection
+        const dpx = px - projX;
+        const dpy = py - projY;
+        return Math.sqrt(dpx * dpx + dpy * dpy);
     }
     
     pointInPolygon(x, y, polygon) {
