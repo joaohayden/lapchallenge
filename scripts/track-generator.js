@@ -583,20 +583,8 @@ class TrackGenerator {
     }
 
     getGameScale() {
-        // Simulate the scale calculation as if we were using the main game canvas (400x300)
-        // This ensures coordinates are normalized correctly for the main game
-        const gameCanvasWidth = 400;
-        const gameCanvasHeight = 300;
-        const canvasAspectRatio = gameCanvasWidth / gameCanvasHeight;
-        const gameAspectRatio = this.GAME_BASE_WIDTH / this.GAME_BASE_HEIGHT;
-        
-        if (canvasAspectRatio > gameAspectRatio) {
-            // Canvas is wider than game - fit by height
-            return gameCanvasHeight / this.GAME_BASE_HEIGHT;
-        } else {
-            // Canvas is taller than game - fit by width  
-            return gameCanvasWidth / this.GAME_BASE_WIDTH;
-        }
+        // Use the same calculation as the original project
+        return Math.min(this.canvas.width, this.canvas.height) / 400;
     }
 
     getGameTrackWidth() {
