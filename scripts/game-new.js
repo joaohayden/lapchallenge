@@ -93,7 +93,6 @@ class Game {
         if (stored) {
             try {
                 const customTrackData = JSON.parse(stored);
-                console.log('🏁 Carregando pista personalizada...');
                 this.generateCustomTrack(customTrackData);
                 this.hasCustomTrack = true;
             } catch (e) {
@@ -114,8 +113,6 @@ class Game {
             return;
         }
 
-        console.log('🔄 Gerando pista personalizada com', points.length, 'pontos');
-        
         // Calcular escala baseada no canvas (igual ao track generator)
         const scale = Math.min(this.canvas.width, this.canvas.height) / 400;
         const gameWidth = 320 * scale;
@@ -154,8 +151,6 @@ class Game {
         
         // Reset dos recordes ao carregar nova pista
         this.resetTrackRecords();
-        
-        console.log('✅ Pista personalizada gerada com sucesso!');
     }
 
     generateDefaultTrack() {
@@ -337,15 +332,7 @@ class Game {
         if (Math.abs(crossProduct) > 0.05) { // Threshold menor para maior sensibilidade
             direction = crossProduct > 0 ? 'left' : 'right';
         }
-        
-        console.log(`🔍 Análise detalhada ponto ${pointIndex}:`, {
-            angleDegrees: angleDegrees.toFixed(1),
-            crossProduct: crossProduct.toFixed(3),
-            direction: direction,
-            inVector: { x: inVector.x.toFixed(3), y: inVector.y.toFixed(3) },
-            outVector: { x: outVector.x.toFixed(3), y: outVector.y.toFixed(3) }
-        });
-        
+
         return {
             isCurve: angleDegrees > 8, // Threshold menor para detectar curvas mais suaves
             direction: direction,
@@ -530,6 +517,11 @@ class Game {
             
             // Lógica do espaço igual ao game.js original
             if (e.code === 'Space') {
+                console.log('DEBUG: Space pressed in game-new.js');
+                console.log('  isWaitingForContinue:', this.isWaitingForContinue);
+                console.log('  isRunning:', this.isRunning);
+                console.log('  gameState from UI:', this.ui?.gameState);
+                
                 if (this.isWaitingForContinue) {
                     // Verificar se é um overlay de cheat
                     if (this.ui && this.ui.currentOverlayType === 'cheat') {
@@ -555,6 +547,7 @@ class Game {
                     }
                 } else if (!this.isRunning) {
                     // Iniciar o jogo
+                    console.log('🚀 Starting game from Space key');
                     this.startGame();
                 } else if (this.isRunning && this.ui.getGameMode && this.ui.getGameMode() === 'continuous') {
                     // Verificar se jogo acabou de começar (prevenir parada imediata)
@@ -602,8 +595,6 @@ class Game {
     }
 
     resetGame() {
-        console.log('🔄 Resetting game...');
-        
         // Reset game state
         this.isRunning = false;
         this.isPaused = false;
@@ -639,13 +630,10 @@ class Game {
         }
         
         // Debug: verificar posição inicial
-        console.log('🏁 Car reset to:', this.startLine.x, this.startLine.y, 'angle:', this.startLine.angle);
-        console.log('🔒 Anti-cheat variables reset');
     }
 
     // Reset apenas a posição do carro sem alterar estado do jogo
     resetCarPosition() {
-        console.log('🔄 Resetting car position only...');
         
         // Reset car
         this.carController.setPosition(this.startLine.x, this.startLine.y, this.startLine.angle);
@@ -1537,7 +1525,6 @@ class Game {
         
         // DETECÇÃO INTELIGENTE DE CURVA E DIREÇÃO
         const curveInfo = this.detectCurveDirection(0);
-        console.log(`🔍 Análise da curva no ponto 0:`, curveInfo);
         
         if (curveInfo.isCurve && Math.abs(curveInfo.angle) > 8) { // Reduzido de 15° para 8°
             // Ajustar linha baseado na direção real da curva
@@ -1557,10 +1544,6 @@ class Game {
             const newPerpY = perpX * sin_adj + perpY * cos_adj;
             perpX = newPerpX;
             perpY = newPerpY;
-            
-            console.log(`📐 Linha ajustada: ${curveInfo.direction} ${(Math.abs(adjustmentAngle) * 180/Math.PI).toFixed(1)}°`);
-        } else {
-            console.log(`📏 Linha mantida perpendicular (reta ou curva suave)`);
         }
         
         const halfWidth = this.trackWidth / 2;

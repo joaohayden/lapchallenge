@@ -67,19 +67,41 @@ class UI {
         // Keyboard controls
         document.addEventListener('keydown', (e) => {
             if (e.code === 'Space') {
-                e.preventDefault();
+                console.log('DEBUG: Space pressed in ui.js');
+                console.log('  gameState:', this.gameState);
+                console.log('  window.game exists:', !!window.game);
+                console.log('  window.game.isRunning:', window.game?.isRunning);
+                console.log('  window.game.isWaitingForContinue:', window.game?.isWaitingForContinue);
+                
+                // Só processa se for caso específico do UI
                 if (window.game && window.game.isWaitingForContinue) {
+                    console.log('  UI processing: waiting for continue');
+                    e.preventDefault();
+                    e.stopPropagation();
                     // Clear visual elements when continuing
                     this.stopTimerBlinking();
                     this.hideToast();
                     // Continue from lap complete in classic mode
                     window.game.continueFromLapComplete();
-                } else if (this.gameState === 'menu' || !window.game || !window.game.isRunning) {
-                    // Start game from menu or when not running
-                    console.log('Space pressed - starting game (gameState:', this.gameState, ')');
-                    this.startGame();
+                    return;
                 }
-                // Nota: Lógica do modo contínuo é tratada no game.js
+                
+                // Se o jogo existe e está configurado, deixa ele processar
+                if (window.game && typeof window.game.startGame === 'function') {
+                    console.log('  UI ignoring - game will handle');
+                    return; // NÃO previne default - deixa game processar
+                }
+                
+                // Só processa no UI se não há jogo disponível
+                if (this.gameState === 'menu') {
+                    console.log('  UI processing: no game available, starting from UI');
+                    e.preventDefault();
+                    e.stopPropagation();
+                    this.startGame();
+                    return;
+                }
+                
+                console.log('  UI ignoring - unknown state');
             }
         });
         

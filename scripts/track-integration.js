@@ -244,6 +244,9 @@ class TrackIntegration {
 
     // Adicionar botões no jogo principal
     addGameButtons() {
+        // Botão de pista personalizada temporariamente desabilitado para evitar interferência
+        return;
+        
         const gameContainer = document.querySelector('.game-container');
         if (!gameContainer) return;
 
@@ -270,9 +273,12 @@ class TrackIntegration {
             this.toggleCustomTrack();
         });
         
-        // Só mostrar se houver pista personalizada
-        if (this.customTrackData) {
-            gameContainer.appendChild(useCustomBtn);
+        // Só mostrar se houver pista personalizada E se não estivermos em modo de teste
+        if (this.customTrackData && !window.location.search.includes('debug')) {
+            // Adicionar delay para evitar interferência com inicialização do jogo
+            setTimeout(() => {
+                gameContainer.appendChild(useCustomBtn);
+            }, 1000);
         }
     }
 
