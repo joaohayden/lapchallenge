@@ -74,8 +74,9 @@ class UI {
                     this.hideToast();
                     // Continue from lap complete in classic mode
                     window.game.continueFromLapComplete();
-                } else if (this.gameState === 'menu') {
-                    // Start game from menu
+                } else if (this.gameState === 'menu' || !window.game || !window.game.isRunning) {
+                    // Start game from menu or when not running
+                    console.log('Space pressed - starting game (gameState:', this.gameState, ')');
                     this.startGame();
                 }
                 // Nota: Lógica do modo contínuo é tratada no game.js
