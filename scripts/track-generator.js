@@ -1,3 +1,4 @@
+// Track Generator v2.1 - Fixed scale and GitHub Pages sync
 class TrackDesignValidator {
     constructor(trackWidth) {
         this.trackWidth = trackWidth;
