@@ -67,6 +67,33 @@ body {
     margin: 0;
 }
 
+/* Track Generator Link */
+.track-generator-link {
+    position: absolute;
+    top: 0;
+    right: 0;
+    background: rgba(0, 0, 0, 0.8);
+    color: #ffffff;
+    text-decoration: none;
+    padding: 8px 12px;
+    font-size: 0.8rem;
+    font-weight: bold;
+    border-radius: 6px;
+    transition: all 0.3s ease;
+    border: 2px solid #ffffff;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    backdrop-filter: blur(5px);
+    z-index: 300;
+}
+
+.track-generator-link:hover {
+    background: rgba(255, 255, 255, 0.9);
+    color: #000000;
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+}
+
 .pixel-title-logo {
     height: clamp(2rem, 4vh, 3rem);
     width: auto;

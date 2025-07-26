@@ -15,6 +15,7 @@ Um clone moderno e responsivo do famoso jogo HotLap Daily, desenvolvido com HTML
 - 🎨 Cores autênticas das escuderias F1 2024
 - 💾 Persistência de dados com localStorage
 - 📊 Contador de voltas no modo contínuo
+- 🎯 **Track Generator**: Crie suas próprias pistas customizadas
 
 ### Escuderias F1 com Cores Autênticas
 - **Ferrari** - Drama Vermelho
@@ -42,20 +43,31 @@ Um clone moderno e responsivo do famoso jogo HotLap Daily, desenvolvido com HTML
 1. **Clássico**: Complete uma volta → Veja seu tempo → Pressione espaço para próxima volta
 2. **Contínuo**: Corra continuamente → Pressione espaço para parar e ver estatísticas
 
+### 🎯 Track Generator
+Crie suas próprias pistas customizadas com o gerador integrado:
+- **Desenhar**: Clique e arraste no canvas para criar pistas
+- **Auto-Fechamento**: A pista se fecha automaticamente quando você se aproxima do início
+- **Validação**: Verificação em tempo real de cruzamentos e erros
+- **Testar**: Execute suas pistas criadas diretamente no jogo
+- **Controles**: Undo, Clear, e pistas de exemplo disponíveis
+
 ## 🏗️ Estrutura do Projeto
 
 ```
 projeto/
-├── index.html          # Página principal
+├── index.html              # Página principal do jogo
+├── track-generator.html    # Gerador de pistas customizadas
 ├── styles/
-│   └── main.css        # Estilos responsivos
+│   └── main.css           # Estilos responsivos
 └── scripts/
-    ├── car.js          # Física e renderização do carro
-    ├── track.js        # Geração e lógica da pista
-    ├── physics.js      # Sistema de física e utilitários
-    ├── ui.js           # Interface e controles
-    ├── game.js         # Loop principal do jogo
-    └── share.js        # Sistema de compartilhamento
+    ├── car.js             # Física e renderização do carro
+    ├── track.js           # Geração e lógica da pista
+    ├── physics.js         # Sistema de física e utilitários
+    ├── ui.js              # Interface e controles
+    ├── game.js            # Loop principal do jogo
+    ├── share.js           # Sistema de compartilhamento
+    ├── track-generator.js # Sistema de criação de pistas
+    └── track-integration.js # Integração entre gerador e jogo
 ```
 
 ## 🚀 Como Executar

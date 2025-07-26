@@ -37,7 +37,7 @@ class Game {
         // Initialize UI first
         this.ui = new UI();
         
-        // Initialize game objects
+        // Initialize game objects - use original Track class
         this.track = new Track(this.canvas);
         this.car = new Car(this.canvas, this.track);
         

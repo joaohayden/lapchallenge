@@ -93,25 +93,8 @@ class Track {
         this.ctx.fillStyle = '#f5f5f5';
         this.ctx.fillRect(0, 0, this.width, this.height);
         
-        // Draw track surface
-        this.ctx.fillStyle = '#333333';
-        this.ctx.beginPath();
-        
-        // Draw outer boundary
-        this.ctx.moveTo(this.outerPath[0].x, this.outerPath[0].y);
-        for (let i = 1; i < this.outerPath.length; i++) {
-            this.ctx.lineTo(this.outerPath[i].x, this.outerPath[i].y);
-        }
-        this.ctx.closePath();
-        
-        // Draw inner boundary (hole)
-        this.ctx.moveTo(this.innerPath[0].x, this.innerPath[0].y);
-        for (let i = this.innerPath.length - 1; i >= 0; i--) {
-            this.ctx.lineTo(this.innerPath[i].x, this.innerPath[i].y);
-        }
-        this.ctx.closePath();
-        
-        this.ctx.fill('evenodd');
+        // Draw track using generator-style stroke rendering (like renderGameStyleTrack)
+        this.renderTrackStroke();
         
         // Draw track center line
         this.ctx.strokeStyle = '#666666';
@@ -133,6 +116,59 @@ class Track {
         this.drawStartLine();
 
         // Draw track boundaries
+        this.drawBoundaries();
+    }
+    
+    // Renderização usando stroke (como no gerador) em vez de fill('evenodd')
+    renderTrackStroke() {
+        // Track stroke principal - cor mais escura como no design original
+        this.ctx.strokeStyle = "#333333"; // Cinza escuro como era antes
+        this.ctx.lineWidth = this.trackWidth;
+        this.ctx.lineCap = "round";
+        this.ctx.lineJoin = "round";
+        
+        // Criar gradiente mais escuro
+        const gradient = this.ctx.createLinearGradient(0, 0, this.width, this.height);
+        gradient.addColorStop(0, "#333333"); // Cinza escuro
+        gradient.addColorStop(1, "#404040"); // Cinza um pouco mais claro
+        this.ctx.strokeStyle = gradient;
+        
+        // Desenhar pista seguindo a linha central
+        this.ctx.beginPath();
+        if (this.centerPoints.length > 0) {
+            this.ctx.moveTo(this.centerPoints[0].x, this.centerPoints[0].y);
+            for (let i = 1; i < this.centerPoints.length; i++) {
+                this.ctx.lineTo(this.centerPoints[i].x, this.centerPoints[i].y);
+            }
+            this.ctx.closePath(); // Fechar o circuito
+        }
+        this.ctx.stroke();
+        
+        // Desenhar borda da pista mais escura também
+        this.ctx.strokeStyle = "#222222"; // Borda bem escura
+        this.ctx.lineWidth = 2;
+        this.ctx.stroke();
+        
+        // Remover linha central tracejada para design mais limpo
+        // this.ctx.strokeStyle = '#666666';
+        // this.ctx.lineWidth = 2;
+        // this.ctx.setLineDash([5, 5]);
+        // this.ctx.beginPath();
+        // this.ctx.moveTo(this.centerPoints[0].x, this.centerPoints[0].y);
+        // for (let i = 1; i < this.centerPoints.length; i++) {
+        //     this.ctx.lineTo(this.centerPoints[i].x, this.centerPoints[i].y);
+        // }
+        // this.ctx.closePath();
+        // this.ctx.stroke();
+        // this.ctx.setLineDash([]);
+
+        // Remover setas de direção para design mais limpo
+        // this.drawDirectionArrows();
+
+        // Draw start/finish line
+        this.drawStartLine();
+
+        // Draw track boundaries (agora invisíveis)
         this.drawBoundaries();
     }
     
@@ -181,42 +217,135 @@ class Track {
     }
     
     drawBoundaries() {
-        // Draw inner boundary
-        this.ctx.strokeStyle = '#FF0000';
-        this.ctx.lineWidth = 2;
+        // Todas as bordas invisíveis - apenas pista limpa
+        // this.drawVisualTrackBoundaries(); // Comentado
+        
+        // Linhas de tolerância também invisíveis
+        // const gameMode = window.game && window.game.ui && window.game.ui.getGameMode ? window.game.ui.getGameMode() : 'classic';
+        // if (gameMode === 'continuous') {
+        //     this.drawToleranceBoundaries();
+        // }
+    }
+    
+    // Desenhar as bordas reais de colisão (limite visual da pista)
+    drawVisualTrackBoundaries() {
+        const halfWidth = this.trackWidth / 2; // 20px para trackWidth=40
+        
+        // Calcular bordas reais baseadas na linha central
+        const innerBoundary = [];
+        const outerBoundary = [];
+        
+        for (let i = 0; i < this.centerPoints.length; i++) {
+            const current = this.centerPoints[i];
+            const next = this.centerPoints[(i + 1) % this.centerPoints.length];
+            
+            // Calculate perpendicular direction
+            const dx = next.x - current.x;
+            const dy = next.y - current.y;
+            const length = Math.sqrt(dx * dx + dy * dy);
+            
+            if (length === 0) continue;
+            
+            const perpX = -dy / length;
+            const perpY = dx / length;
+            
+            // Bordas no limite visual exato
+            innerBoundary.push({
+                x: current.x + perpX * halfWidth,
+                y: current.y + perpY * halfWidth
+            });
+            
+            outerBoundary.push({
+                x: current.x - perpX * halfWidth,
+                y: current.y - perpY * halfWidth
+            });
+        }
+        
+        // Desenhar bordas de colisão em verde claro para mostrar onde é o limite
+        this.ctx.strokeStyle = 'rgba(0, 255, 0, 0.6)'; // Verde semi-transparente
+        this.ctx.lineWidth = 1;
+        this.ctx.setLineDash([3, 3]); // Linha tracejada
+        
+        // Borda interna
         this.ctx.beginPath();
-        this.ctx.moveTo(this.innerPath[0].x, this.innerPath[0].y);
-        for (let i = 1; i < this.innerPath.length; i++) {
-            this.ctx.lineTo(this.innerPath[i].x, this.innerPath[i].y);
+        this.ctx.moveTo(innerBoundary[0].x, innerBoundary[0].y);
+        for (let i = 1; i < innerBoundary.length; i++) {
+            this.ctx.lineTo(innerBoundary[i].x, innerBoundary[i].y);
         }
         this.ctx.closePath();
         this.ctx.stroke();
         
-        // Draw outer boundary
-        this.ctx.strokeStyle = '#FF0000';
+        // Borda externa
         this.ctx.beginPath();
-        this.ctx.moveTo(this.outerPath[0].x, this.outerPath[0].y);
-        for (let i = 1; i < this.outerPath.length; i++) {
-            this.ctx.lineTo(this.outerPath[i].x, this.outerPath[i].y);
+        this.ctx.moveTo(outerBoundary[0].x, outerBoundary[0].y);
+        for (let i = 1; i < outerBoundary.length; i++) {
+            this.ctx.lineTo(outerBoundary[i].x, outerBoundary[i].y);
         }
         this.ctx.closePath();
         this.ctx.stroke();
         
-        // Draw blue tolerance boundaries in continuous mode
-        const gameMode = window.game && window.game.ui && window.game.ui.getGameMode ? window.game.ui.getGameMode() : 'classic';
-        if (gameMode === 'continuous') {
-            this.drawToleranceBoundaries();
-        }
+        this.ctx.setLineDash([]); // Restaurar linha sólida
     }
     
     drawToleranceBoundaries() {
-        const tolerance = 8; // 8 pixels além das linhas vermelhas para não sobrepor
+        const tolerance = 8; // 8 pixels além do limite visual da pista
+        const halfWidth = this.trackWidth / 2;
+        const toleranceRadius = halfWidth + tolerance; // Raio total incluindo tolerância
         
-        // Draw inner tolerance boundary (blue line MORE inside the track)
-        this.drawTolerancePath(this.innerPath, tolerance, '#0066FF');
+        // Calcular bordas de tolerância baseadas na linha central
+        const innerToleranceBoundary = [];
+        const outerToleranceBoundary = [];
         
-        // Draw outer tolerance boundary (blue line MORE outside the track)
-        this.drawTolerancePath(this.outerPath, -tolerance, '#0066FF');
+        for (let i = 0; i < this.centerPoints.length; i++) {
+            const current = this.centerPoints[i];
+            const next = this.centerPoints[(i + 1) % this.centerPoints.length];
+            
+            // Calculate perpendicular direction
+            const dx = next.x - current.x;
+            const dy = next.y - current.y;
+            const length = Math.sqrt(dx * dx + dy * dy);
+            
+            if (length === 0) continue;
+            
+            const perpX = -dy / length;
+            const perpY = dx / length;
+            
+            // Bordas de tolerância
+            innerToleranceBoundary.push({
+                x: current.x + perpX * toleranceRadius,
+                y: current.y + perpY * toleranceRadius
+            });
+            
+            outerToleranceBoundary.push({
+                x: current.x - perpX * toleranceRadius,
+                y: current.y - perpY * toleranceRadius
+            });
+        }
+        
+        // Desenhar bordas de tolerância em azul
+        this.ctx.strokeStyle = '#0066FF';
+        this.ctx.lineWidth = 2;
+        this.ctx.setLineDash([4, 4]);
+        
+        // Borda interna de tolerância
+        this.ctx.beginPath();
+        this.ctx.moveTo(innerToleranceBoundary[0].x, innerToleranceBoundary[0].y);
+        for (let i = 1; i < innerToleranceBoundary.length; i++) {
+            this.ctx.lineTo(innerToleranceBoundary[i].x, innerToleranceBoundary[i].y);
+        }
+        this.ctx.closePath();
+        this.ctx.stroke();
+        
+        // Borda externa de tolerância
+        this.ctx.beginPath();
+        this.ctx.moveTo(outerToleranceBoundary[0].x, outerToleranceBoundary[0].y);
+        for (let i = 1; i < outerToleranceBoundary.length; i++) {
+            this.ctx.lineTo(outerToleranceBoundary[i].x, outerToleranceBoundary[i].y);
+        }
+        this.ctx.closePath();
+        this.ctx.stroke();
+        
+        this.ctx.setLineDash([]);
     }
 
     drawDirectionArrows() {
@@ -312,38 +441,43 @@ class Track {
     
     // Check if a point is on the track
     isOnTrack(x, y, tolerance = 0) {
+        // Nova colisão baseada na distância da linha central (limite visual da pista)
+        const distanceFromCenter = this.getDistanceFromCenterLine(x, y);
+        const visualTrackRadius = this.trackWidth / 2; // Raio visual da pista (20px para trackWidth=40)
+        
         if (tolerance > 0) {
-            // In continuous mode, check against the tolerance boundaries
-            return this.isWithinYellowBoundaries(x, y);
+            // Modo contínuo: permite zona de tolerância além do limite visual
+            return distanceFromCenter <= (visualTrackRadius + tolerance);
+        } else {
+            // Modo clássico: colisão exata no limite visual da pista
+            return distanceFromCenter <= visualTrackRadius;
+        }
+    }
+    
+    // Calcular distância mínima do ponto para a linha central da pista
+    getDistanceFromCenterLine(x, y) {
+        let minDistance = Infinity;
+        
+        for (let i = 0; i < this.centerPoints.length; i++) {
+            const current = this.centerPoints[i];
+            const next = this.centerPoints[(i + 1) % this.centerPoints.length];
+            
+            const dist = this.distanceToLineSegment(x, y, current.x, current.y, next.x, next.y);
+            minDistance = Math.min(minDistance, dist);
         }
         
-        // Original method for classic mode (no tolerance)
-        return this.pointInPolygon(x, y, this.outerPath) && 
-               !this.pointInPolygon(x, y, this.innerPath);
+        return minDistance;
     }
     
     // Check if point is within the tolerance boundaries
     isWithinYellowBoundaries(x, y) {
-        // In continuous mode, the tolerance zone is the absolute limit
+        // Nova lógica: baseada na distância da linha central
         const tolerance = 8;
+        const distanceFromCenter = this.getDistanceFromCenterLine(x, y);
+        const visualTrackRadius = this.trackWidth / 2;
         
-        // First check: is point within the original track?
-        const withinOriginalTrack = this.pointInPolygon(x, y, this.outerPath) && 
-                                   !this.pointInPolygon(x, y, this.innerPath);
-        
-        if (withinOriginalTrack) {
-            return true; // Always allow movement on the actual track
-        }
-        
-        // For points outside the track, check if they're within the tolerance zone limits
-        const distanceToOuterBoundary = this.getDistanceToPath(x, y, this.outerPath);
-        const distanceToInnerBoundary = this.getDistanceToPath(x, y, this.innerPath);
-        
-        // Only allow if within tolerance zone (between red and blue lines)
-        const withinOuterTolerance = distanceToOuterBoundary <= tolerance;
-        const withinInnerTolerance = distanceToInnerBoundary <= tolerance;
-        
-        return withinOuterTolerance || withinInnerTolerance;
+        // Permitir movimento dentro da pista + zona de tolerância
+        return distanceFromCenter <= (visualTrackRadius + tolerance);
     }
     
     // Get minimum distance from point to a path
