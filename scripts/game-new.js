@@ -33,6 +33,11 @@ class Game {
         this.hasCompletedLap = false;
         this.gameName = "speedlaps.run";
         
+        // Controle de pistas
+        this.hasDailyTrack = false;
+        this.hasCustomTrack = false;
+        this.dailyTrackInfo = null;
+        
         // Variáveis para validação anti-cheat (como no car.js original)
         this.lapCount = 0;
         this.establishedCrossingPattern = null;
@@ -93,11 +98,16 @@ class Game {
         // Game area offset (12% do canvas reservado para UI)
         const gameAreaOffset = 0.12 * this.canvas.height;
         
-        // Verificar se há pista personalizada para carregar
-        this.loadCustomTrackIfAvailable();
+        // Verificar primeiro se há pista diária definida
+        this.loadDailyTrackIfAvailable();
         
-        // Se não há pista personalizada, gerar pista padrão
-        if (!this.hasCustomTrack) {
+        // Se não há pista diária, verificar se há pista personalizada
+        if (!this.hasDailyTrack) {
+            this.loadCustomTrackIfAvailable();
+        }
+        
+        // Se não há pista diária nem personalizada, gerar pista padrão
+        if (!this.hasDailyTrack && !this.hasCustomTrack) {
             this.generateDefaultTrack();
         }
         
@@ -158,6 +168,134 @@ class Game {
                 console.log('🔄 Sincronizado com seleção da UI:', currentSelection);
             }
         }
+    }
+
+    loadDailyTrackIfAvailable() {
+        try {
+            const dailyTrackData = localStorage.getItem('daily_track_data');
+            const dailyTrackDate = localStorage.getItem('daily_track_date');
+            const today = new Date().toISOString().split('T')[0]; // YYYY-MM-DD
+            
+            if (dailyTrackData && dailyTrackDate === today) {
+                const trackInfo = JSON.parse(dailyTrackData);
+                console.log('🏁 Carregando pista diária:', trackInfo.name);
+                
+                if (trackInfo.type === 'custom' && trackInfo.data) {
+                    // Pista personalizada diária
+                    this.generateCustomTrack(trackInfo.data);
+                    this.hasDailyTrack = true;
+                    this.dailyTrackInfo = trackInfo;
+                    
+                    // Mostrar toast informando sobre pista diária
+                    if (this.ui && typeof this.ui.showToast === 'function') {
+                        setTimeout(() => {
+                            this.ui.showToast(`🏁 Pista Diária: ${trackInfo.name}`, 'info', 3000);
+                        }, 1000);
+                    }
+                } else if (trackInfo.type === 'default') {
+                    // Pista padrão diária
+                    this.generateDefaultTrack();
+                    this.hasDailyTrack = true;
+                    this.dailyTrackInfo = trackInfo;
+                } else if (trackInfo.type === 'random') {
+                    // Pista aleatória diária (gerar seed baseado na data)
+                    this.generateDailyRandomTrack(today);
+                    this.hasDailyTrack = true;
+                    this.dailyTrackInfo = trackInfo;
+                }
+                
+                console.log('✅ Pista diária carregada com sucesso');
+                return;
+            } else if (dailyTrackDate && dailyTrackDate !== today) {
+                console.log('📅 Pista diária expirada, removendo...');
+                localStorage.removeItem('daily_track_data');
+                localStorage.removeItem('daily_track_date');
+            }
+        } catch (error) {
+            console.error('❌ Erro ao carregar pista diária:', error);
+        }
+        
+        this.hasDailyTrack = false;
+        this.dailyTrackInfo = null;
+    }
+
+    generateDailyRandomTrack(dateString) {
+        // Usar data como seed para gerar sempre a mesma pista "aleatória" para o dia
+        const seed = this.hashString(dateString);
+        const rng = this.createSeededRNG(seed);
+        
+        const scale = Math.min(this.canvas.width, this.canvas.height) / 400;
+        const gameWidth = 320 * scale;
+        const gameHeight = 280 * scale;
+        const gameAreaX = this.canvas.width / 2 - gameWidth / 2;
+        const gameAreaY = this.canvas.height / 2 - gameHeight / 2;
+        
+        // Gerar pontos com seed determinística
+        const numPoints = 8 + Math.floor(rng() * 4); // 8-12 pontos
+        const points = [];
+        
+        // Primeiro ponto (linha de largada)
+        points.push({ 
+            x: gameAreaX + 0.1 * gameWidth, 
+            y: gameAreaY + 0.85 * gameHeight, 
+            angle: 0 
+        });
+        
+        // Gerar outros pontos em círculo com variações
+        for (let i = 1; i < numPoints; i++) {
+            const angle = (i / (numPoints - 1)) * Math.PI * 2;
+            const radiusBase = 0.25;
+            const radiusVariation = 0.15 * rng();
+            const radius = radiusBase + radiusVariation;
+            
+            const centerX = 0.5;
+            const centerY = 0.45;
+            
+            const x = gameAreaX + (centerX + Math.cos(angle) * radius) * gameWidth;
+            const y = gameAreaY + (centerY + Math.sin(angle) * radius) * gameHeight;
+            
+            points.push({ x, y });
+        }
+        
+        // Fechar o circuito
+        points.push(points[0]);
+        
+        this.trackPoints = points;
+        this.trackWidth = 50 * scale;
+        
+        this.startLine = {
+            x: this.trackPoints[0].x,
+            y: this.trackPoints[0].y,
+            angle: Math.atan2(
+                this.trackPoints[1].y - this.trackPoints[0].y,
+                this.trackPoints[1].x - this.trackPoints[0].x
+            )
+        };
+        
+        this.generateTrackBounds();
+        this.carController.setPosition(this.startLine.x, this.startLine.y, this.startLine.angle);
+        
+        console.log(`🎲 Pista aleatória diária gerada com ${numPoints} pontos (seed: ${seed})`);
+    }
+
+    // Função hash simples para converter string em número
+    hashString(str) {
+        let hash = 0;
+        for (let i = 0; i < str.length; i++) {
+            const char = str.charCodeAt(i);
+            hash = ((hash << 5) - hash) + char;
+            hash = hash & hash; // Convert to 32bit integer
+        }
+        return Math.abs(hash);
+    }
+
+    // Criar gerador de números pseudo-aleatórios com seed
+    createSeededRNG(seed) {
+        let s = seed;
+        return function() {
+            s = Math.sin(s) * 10000;
+            return s - Math.floor(s);
+        };
     }
 
     loadCustomTrackIfAvailable() {
@@ -475,8 +613,14 @@ class Game {
             signature += `${Math.round(point.x)},${Math.round(point.y)};`;
         }
         
-        // Adicionar informação se é pista personalizada ou padrão
-        signature += this.hasCustomTrack ? '-custom' : '-default';
+        // Adicionar informação sobre tipo de pista
+        if (this.hasDailyTrack) {
+            signature += `-daily-${this.dailyTrackInfo?.type || 'unknown'}`;
+        } else if (this.hasCustomTrack) {
+            signature += '-custom';
+        } else {
+            signature += '-default';
+        }
         
         return signature;
     }
@@ -855,7 +999,7 @@ class Game {
             williams: { primary: '#004080', secondary: '#FFFFFF' },       // Azul oceano com branco
             rb: { primary: '#4169E1', secondary: '#FFFFFF' },             // Azul royal com branco
             sauber: { primary: '#228B22', secondary: '#000000' },         // Verde verdão com preto (Stake)
-            haas: { primary: '#000000', secondary: '#FFFFFF' }            // Preto com branco
+            haas: { primary: '#000000', secondary: '#f31a1aff' }            // Preto com branco
         };
         
         const teamData = teamColors[teamValue] || teamColors.ferrari;
