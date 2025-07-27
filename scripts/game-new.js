@@ -764,12 +764,12 @@ class Game {
         if (this.ui && typeof this.ui.resetGame === 'function') {
             this.ui.resetGame();
         }
-        
-        // Debug: verificar posição inicial
     }
 
     // Reset apenas a posição do carro sem alterar estado do jogo
     resetCarPosition() {
+        // LIMPAR CONTROLES PRIMEIRO
+        this.carController.setControls(false, false);
         
         // Reset car
         this.carController.setPosition(this.startLine.x, this.startLine.y, this.startLine.angle);
@@ -793,9 +793,18 @@ class Game {
             this.ui.hideToast();
         }
         
-        // Debug: verificar posição inicial
-        console.log('🏁 Car reset to:', this.startLine.x, this.startLine.y, 'angle:', this.startLine.angle);
-        console.log('🔒 Anti-cheat variables reset');
+        // Verificar posição real do carController após reset
+        setTimeout(() => {
+            console.log('🚗 [DEBUG] Car position after reset (100ms later):', {
+                x: this.carController.position.x.toFixed(2),
+                y: this.carController.position.y.toFixed(2),
+                angle: this.carController.position.angle.toFixed(4),
+                angleDegrees: (this.carController.position.angle * 180/Math.PI).toFixed(1),
+                speed: this.carController.speed.toFixed(2),
+                justReset: this.carController.justReset,
+                controls: this.carController.controls
+            });
+        }, 100);
     }
 
     startGame() {
@@ -809,6 +818,9 @@ class Game {
         // Reset car position ANTES de definir isRunning
         this.resetCarPosition();
         
+        // IMPORTANTE: GARANTIR QUE CONTROLES ESTEJAM LIMPOS
+        this.carController.setControls(false, false);
+        
         // Agora configurar o estado do jogo
         this.isRunning = true;
         this.isPaused = false;
@@ -819,14 +831,6 @@ class Game {
         console.log('🚗 Garantindo que justReset seja false ao iniciar jogo');
         this.carController.justReset = false;
         this.carController.justResetClearedManually = true;
-        
-        console.log('🚗 Car position after start:', {
-            x: this.carController.position.x.toFixed(2),
-            y: this.carController.position.y.toFixed(2),
-            angle: this.carController.position.angle.toFixed(2),
-            speed: this.carController.speed.toFixed(2),
-            justReset: this.carController.justReset
-        });
         
         // Notificar UI
         if (this.ui) {
@@ -2221,10 +2225,10 @@ class CarController {
     }
 
     setPosition(x, y, angle = 0) {
-        console.debug(`🚗 [CarController] setPosition: x=${x}, y=${y}, angle=${angle}`);
         this.position.x = x;
         this.position.y = y;
         this.position.angle = angle;
+        
         // Reset velocidade quando reposicionar
         this.speed = 0;
         this.velocity = { x: 0, y: 0 };
@@ -2232,13 +2236,15 @@ class CarController {
         this.justResetClearedManually = false; // Reset flag de limpeza manual
         this.automaticCleanupScheduled = false; // Reset flag de timer automático
         this.lastUpdateTime = performance.now(); // Reset timer também
-        console.debug(`🚗 [CarController] Position set, speed reset to ${this.speed}, justReset=${this.justReset}`);
     }
 
     update() {
         const currentTime = performance.now();
         const deltaTime = currentTime - this.lastUpdateTime;
         this.lastUpdateTime = currentTime;
+        
+        // Salvar ângulo anterior para debug
+        const oldAngle = this.position.angle;
         
         // Prevenir deltaTime muito grandes que causam "teleporte"
         const limitedDeltaTime = Math.min(deltaTime, 50); // Máximo 50ms
@@ -2265,13 +2271,8 @@ class CarController {
                     if (!this.justResetClearedManually) {
                         const isGameRunning = window.game && window.game.isRunning && !window.game.isWaitingForContinue && !window.game.isPaused;
                         if (isGameRunning) {
-                            console.log(`⏰ CarController: Limpando justReset flag automaticamente - permitindo aceleração`);
                             this.justReset = false;
-                        } else {
-                            console.log(`⏰ CarController: NÃO limpando justReset automaticamente - jogo não está rodando`);
                         }
-                    } else {
-                        console.log(`⏰ CarController: NÃO limpando justReset automaticamente - foi limpo manualmente`);
                     }
                     this.automaticCleanupScheduled = false;
                 }, 100);
