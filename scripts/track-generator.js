@@ -1208,17 +1208,82 @@ class TrackGenerator {
             }
         };
         
-        // TODO: Initialize game engine with this track data
-        // This will be the actual game implementation
-        this.startGameSimulation(customTrackData);
+        // Hide the track canvas and replace with game canvas
+        this.switchCanvasToGameMode();
+        
+        // Initialize embedded game engine like in admin
+        this.startEmbeddedGame(customTrackData);
     }
     
     stopGameEngine() {
-        // TODO: Stop game engine, clear timers, etc.
-        if (this.gameLoop) {
-            clearInterval(this.gameLoop);
-            this.gameLoop = null;
+        // Stop embedded game engine
+        if (this.embeddedGame) {
+            this.embeddedGame.stop();
+            this.embeddedGame = null;
         }
+        
+        // Switch back to track canvas
+        this.switchCanvasToEditMode();
+    }
+    
+    switchCanvasToGameMode() {
+        // Hide track canvas
+        const trackCanvas = document.getElementById('trackCanvas');
+        if (trackCanvas) {
+            trackCanvas.style.display = 'none';
+        }
+        
+        // Create game canvas if it doesn't exist
+        let gameCanvas = document.getElementById('gameCanvas');
+        if (!gameCanvas) {
+            gameCanvas = document.createElement('canvas');
+            gameCanvas.id = 'gameCanvas';
+            gameCanvas.width = 533;
+            gameCanvas.height = 400;
+            gameCanvas.style.cssText = `
+                width: 100% !important;
+                height: 100% !important;
+                max-width: 533px !important;
+                max-height: 400px !important;
+                background: #87CEEB !important;
+                border-radius: 4px;
+                display: block;
+            `;
+            
+            // Insert game canvas in same container as track canvas
+            const gameScreen = document.querySelector('.game-screen');
+            if (gameScreen) {
+                gameScreen.appendChild(gameCanvas);
+            }
+        } else {
+            gameCanvas.style.display = 'block';
+        }
+        
+        return gameCanvas;
+    }
+    
+    switchCanvasToEditMode() {
+        // Show track canvas
+        const trackCanvas = document.getElementById('trackCanvas');
+        if (trackCanvas) {
+            trackCanvas.style.display = 'block';
+        }
+        
+        // Hide game canvas
+        const gameCanvas = document.getElementById('gameCanvas');
+        if (gameCanvas) {
+            gameCanvas.style.display = 'none';
+        }
+    }
+    
+    startEmbeddedGame(trackData) {
+        const gameCanvas = this.switchCanvasToGameMode();
+        
+        // Initialize embedded game engine with track points
+        this.embeddedGame = new EmbeddedGameEngine(gameCanvas, trackData.trackPoints);
+        
+        // Show game instructions
+        this.showGameInstructions();
     }
     
     startGameSimulation(trackData) {

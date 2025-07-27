@@ -43,12 +43,6 @@ class Game {
         this.establishedCrossingPattern = null;
         this.lastCarPosition = null;
         
-        // Histórico aprimorado para validação de direção
-        this.carPositionHistory = [];
-        this.directionHistory = [];
-        this.lastValidDirectionCheck = null;
-        this.suspiciousDirectionChanges = 0;
-        
         this.initializeShareButton();
         this.initializeShareModal();
         this.initializeConstructorNames();
@@ -630,7 +624,6 @@ class Game {
         
         try {
             this.carController.update();
-            this.updateCarHistory(); // Atualizar histórico de posições
             this.updateTimer(); // MOVER updateTimer ANTES de checkLapCompletion
             this.checkCollision();
             this.checkLapCompletion();
@@ -654,116 +647,6 @@ class Game {
             // Log quando timer para devido a volta completada (só no modo clássico)
             console.log(`⏹️ Timer parado - volta completada no modo clássico (hasCompletedLap=${this.hasCompletedLap})`);
         }
-    }
-
-    // Atualizar histórico de posições para validação aprimorada
-    updateCarHistory() {
-        const carX = this.carController.position.x;
-        const carY = this.carController.position.y;
-        const carAngle = this.carController.position.angle;
-        const timestamp = Date.now();
-        
-        // Adicionar posição atual ao histórico
-        this.carPositionHistory.push({
-            x: carX,
-            y: carY,
-            angle: carAngle,
-            timestamp: timestamp,
-            onTrack: this.isOnTrack(carX, carY, 0)
-        });
-        
-        // Manter apenas os últimos 60 pontos (aprox. 1 segundo a 60fps)
-        if (this.carPositionHistory.length > 60) {
-            this.carPositionHistory.shift();
-        }
-        
-        // Calcular direção de movimento baseada no histórico
-        if (this.carPositionHistory.length >= 10) {
-            const recent = this.carPositionHistory.slice(-10);
-            const direction = this.calculateMovementDirection(recent);
-            
-            if (direction !== null) {
-                this.directionHistory.push({
-                    direction: direction,
-                    timestamp: timestamp,
-                    confidence: this.calculateDirectionConfidence(recent)
-                });
-                
-                // Manter apenas as últimas 30 direções
-                if (this.directionHistory.length > 30) {
-                    this.directionHistory.shift();
-                }
-            }
-        }
-    }
-
-    // Calcular direção de movimento baseada no histórico de posições
-    calculateMovementDirection(recentPositions) {
-        if (recentPositions.length < 5) return null;
-        
-        let totalMovement = { x: 0, y: 0 };
-        let validSegments = 0;
-        
-        // Calcular vetor de movimento total
-        for (let i = 1; i < recentPositions.length; i++) {
-            const prev = recentPositions[i - 1];
-            const curr = recentPositions[i];
-            
-            const dx = curr.x - prev.x;
-            const dy = curr.y - prev.y;
-            const distance = Math.sqrt(dx * dx + dy * dy);
-            
-            // Apenas considerar movimentos significativos
-            if (distance > 0.5) {
-                totalMovement.x += dx;
-                totalMovement.y += dy;
-                validSegments++;
-            }
-        }
-        
-        if (validSegments === 0) return null;
-        
-        // Normalizar e retornar ângulo de movimento
-        const avgMovement = {
-            x: totalMovement.x / validSegments,
-            y: totalMovement.y / validSegments
-        };
-        
-        return Math.atan2(avgMovement.y, avgMovement.x);
-    }
-
-    // Calcular confiança na direção baseada na consistência
-    calculateDirectionConfidence(recentPositions) {
-        if (recentPositions.length < 5) return 0;
-        
-        const directions = [];
-        for (let i = 1; i < recentPositions.length; i++) {
-            const prev = recentPositions[i - 1];
-            const curr = recentPositions[i];
-            
-            const dx = curr.x - prev.x;
-            const dy = curr.y - prev.y;
-            const distance = Math.sqrt(dx * dx + dy * dy);
-            
-            if (distance > 0.5) {
-                directions.push(Math.atan2(dy, dx));
-            }
-        }
-        
-        if (directions.length < 3) return 0;
-        
-        // Calcular variação angular
-        let totalVariation = 0;
-        for (let i = 1; i < directions.length; i++) {
-            let angleDiff = Math.abs(directions[i] - directions[i - 1]);
-            if (angleDiff > Math.PI) angleDiff = 2 * Math.PI - angleDiff;
-            totalVariation += angleDiff;
-        }
-        
-        const avgVariation = totalVariation / (directions.length - 1);
-        
-        // Retornar confiança (menor variação = maior confiança)
-        return Math.max(0, 1 - (avgVariation / Math.PI));
     }
 
     bindEvents() {
@@ -883,9 +766,11 @@ class Game {
         
         // Reset histórico aprimorado para validação
         this.carPositionHistory = [];
-        this.directionHistory = [];
-        this.lastValidDirectionCheck = null;
-        this.suspiciousDirectionChanges = 0;
+        
+        // Reset zona anti-trapaça
+        this.hasLeftStartZone = false;
+        this.cheatingDetected = false;
+        this.wasInsideAntiCheatZone = false;
         
         // Reset do contador de voltas no modo contínuo
         if (this.ui && this.ui.getGameMode && this.ui.getGameMode() === 'continuous') {
@@ -928,9 +813,11 @@ class Game {
         
         // Reset histórico aprimorado para validação
         this.carPositionHistory = [];
-        this.directionHistory = [];
-        this.lastValidDirectionCheck = null;
-        this.suspiciousDirectionChanges = 0;
+        
+        // Reset zona anti-trapaça
+        this.hasLeftStartZone = false;
+        this.cheatingDetected = false;
+        this.wasInsideAntiCheatZone = false;
         
         // Esconder toast se estiver visível
         if (this.ui && typeof this.ui.hideToast === 'function') {
@@ -1175,38 +1062,51 @@ class Game {
         const carX = this.carController.position.x;
         const carY = this.carController.position.y;
         
-        // DETECÇÃO PRECISA: Só completar volta quando carro ATRAVESSAR a linha
+        // Verificar zona anti-trapaça no modo contínuo
+        const gameMode = this.ui?.getGameMode ? this.ui.getGameMode() : 'classic';
+        if (gameMode === 'continuous') {
+            console.log('🔍 Verificando zona anti-trapaça...');
+            this.checkAntiCheatZone(carX, carY);
+        }
+        
+        // DETECÇÃO SIMPLES: Completar volta quando carro TOCAR na linha (como no beautified.js)
         if (this.lapStartTime && Date.now() - this.lapStartTime > 5000) {
-            // VALIDAÇÃO DE PADRÃO DE CRUZAMENTO (verificar se realmente cruzou)
-            const crossingInfo = this.checkStartLineCrossing(carX, carY);
+            const startPoint = this.trackPoints[0];
+            const distanceToStart = Math.sqrt((carX - startPoint.x) ** 2 + (carY - startPoint.y) ** 2);
             
-            if (crossingInfo && crossingInfo.crossed) {
-                console.log(`🏁 Car CROSSED start line! From ${crossingInfo.fromSide} to ${crossingInfo.toSide}`);
-                
-                // VALIDAÇÃO ANTI-CHEAT: Verificar direção do carro
-                const isDirectionCorrect = this.isCarDirectionCorrect(carX, carY, this.carController.position.angle);
-                
-                if (!isDirectionCorrect) {
-                    console.log('🚨 CHEAT DETECTED: Car going wrong direction!');
-                    this.handleCheatDetection('wrong-direction');
+            // Considerar volta completa quando carro está próximo da linha de largada
+            const completionRadius = 30; // Radius para detecção de volta completa
+            
+            if (distanceToStart < completionRadius) {
+                // No modo contínuo, verificar se não está trapaceando
+                if (gameMode === 'continuous' && this.cheatingDetected) {
+                    console.log('🚫 TRAPAÇA DETECTADA NA CHEGADA! Volta invalidada - carro voltou pela zona de saída');
+                    
+                    // Parar o jogo
+                    this.isRunning = false;
+                    this.isPaused = false;
+                    
+                    // Para todos os controles
+                    this.carController.setControls(false, false);
+                    
+                    // Mostrar overlay de trapaça
+                    if (this.ui && typeof this.ui.showOverlay === 'function') {
+                        this.ui.showOverlay('cheat', {
+                            title: '🚫 LADO ERRADO!',
+                            message: 'Você voltou pelo caminho da saída.<br>Pressione ESPAÇO para reiniciar.',
+                            type: 'error'
+                        });
+                    } else if (this.ui && typeof this.ui.showToast === 'function') {
+                        // Fallback para toast se overlay não disponível
+                        this.ui.showToast('🚫 LADO ERRADO! Você voltou pelo caminho da saída. Pressione ESPAÇO para reiniciar.', 'error', -1);
+                    }
+                    
+                    // Definir que estamos aguardando input
+                    this.isWaitingForContinue = true;
                     return;
                 }
                 
-                // Validar padrão de cruzamento para detecção de direção errada
-                if (this.lapCount > 0) {
-                    const currentPattern = `${crossingInfo.fromSide}->${crossingInfo.toSide}`;
-                    
-                    if (!this.establishedCrossingPattern) {
-                        this.establishedCrossingPattern = currentPattern;
-                        console.log(`📝 Established crossing pattern: ${this.establishedCrossingPattern}`);
-                    } else if (currentPattern !== this.establishedCrossingPattern) {
-                        console.log('🚨 WRONG DIRECTION: Different crossing pattern detected!');
-                        console.log(`Expected: ${this.establishedCrossingPattern}, Got: ${currentPattern}`);
-                        this.handleCheatDetection('wrong-direction');
-                        return;
-                    }
-                }
-                
+                console.log(`🏁 Lap completed! Distance to start: ${distanceToStart.toFixed(2)}`);
                 this.completeLap();
             }
         } else if (!this.lapStartTime) {
@@ -1214,31 +1114,97 @@ class Game {
         }
     }
     
-    // Verificar se direção do carro está correta baseada no histórico de movimento
-    isCarDirectionCorrect(carX, carY, carAngle, tolerance = Math.PI / 4) {
-        // Se não há histórico suficiente, usar validação básica
-        if (this.directionHistory.length < 5) {
-            return this.isCarDirectionCorrectBasic(carX, carY, carAngle, tolerance);
+    // Verificar zona anti-trapaça (zona de saída após linha de largada)
+    checkAntiCheatZone(carX, carY) {
+        // Verificar se trackPoints existe e tem pelo menos 2 pontos
+        if (!this.trackPoints || this.trackPoints.length < 2) {
+            return;
         }
         
-        // NOVA VALIDAÇÃO APRIMORADA BASEADA NO HISTÓRICO
-        
-        // 1. Verificar se há mudanças suspeitas de direção recentes
-        const recentDirections = this.directionHistory.slice(-10);
-        const suspiciousChanges = this.detectSuspiciousDirectionChanges(recentDirections);
-        
-        if (suspiciousChanges > 2) {
-            console.log('🚨 Multiple suspicious direction changes detected:', suspiciousChanges);
-            this.suspiciousDirectionChanges += suspiciousChanges;
-            
-            // Se acumular muitas mudanças suspeitas, é provável cheat
-            if (this.suspiciousDirectionChanges > 5) {
-                console.log('🚨 CHEAT DETECTED: Too many suspicious direction changes');
-                return false;
+        // Se a zona não foi inicializada ainda ou está inválida, tentar inicializar agora
+        if (!this.antiCheatZone || isNaN(this.antiCheatZone.x)) {
+            console.log('🔧 Zona anti-trapaça inválida, tentando inicializar novamente...');
+            this.initializeAntiCheatZone();
+            // Se ainda não conseguiu inicializar, pular
+            if (!this.antiCheatZone || isNaN(this.antiCheatZone.x)) {
+                console.log('❌ Falha ao inicializar zona anti-trapaça');
+                return;
             }
         }
         
-        // 2. Validar direção baseada no progresso na pista
+        const zoneX = this.antiCheatZone.x;
+        const zoneY = this.antiCheatZone.y;
+        const zoneRadius = this.antiCheatZone.radius;
+        
+        // Verificar se carro está na zona
+        const distanceToZone = Math.sqrt((carX - zoneX) ** 2 + (carY - zoneY) ** 2);
+        
+        console.log('🔍 Zone check:', { 
+            distanceToZone: distanceToZone.toFixed(1), 
+            zoneRadius: zoneRadius.toFixed(1),
+            hasLeftStartZone: this.hasLeftStartZone,
+            cheatingDetected: this.cheatingDetected
+        });
+        
+        // Calcular distância do carro até a linha de largada
+        const startPoint = this.trackPoints[0];
+        const distanceToStart = Math.sqrt((carX - startPoint.x) ** 2 + (carY - startPoint.y) ** 2);
+        
+        if (distanceToZone < zoneRadius) {
+            // SÓ PROCESSA SE ESTÁ ENTRANDO NA ZONA AGORA (não estava antes)
+            if (!this.wasInsideAntiCheatZone) {
+                if (!this.hasLeftStartZone) {
+                    // Primeira passagem - carro está saindo da zona inicial (normal)
+                    this.hasLeftStartZone = true;
+                } else {
+                    // Segunda passagem - TRAPAÇA!
+                    this.cheatingDetected = true;
+                }
+            }
+            this.wasInsideAntiCheatZone = true;
+        } else {
+            this.wasInsideAntiCheatZone = false;
+        }
+        
+        // Atualizar estado da zona para desenho
+        this.antiCheatZone.isActive = this.hasLeftStartZone;
+    }
+    
+    // Lidar com trapaça detectada
+    handleCheatDetected() {
+        // Parar o jogo
+        this.isRunning = false;
+        this.isPaused = false;
+        
+        // Para todos os controles
+        this.carController.setControls(false, false);
+        
+        // Mostrar overlay de trapaça
+        if (this.ui && typeof this.ui.showOverlay === 'function') {
+            this.ui.showOverlay('cheat', {
+                title: '🚫 LADO ERRADO!',
+                message: 'Você está indo pela direção errada.<br>Pressione ESPAÇO para reiniciar.',
+                type: 'error'
+            });
+        } else if (this.ui && typeof this.ui.showToast === 'function') {
+            // Fallback para toast se overlay não disponível
+            this.ui.showToast('🚫 LADO ERRADO! Você está indo pela direção errada. Pressione ESPAÇO para reiniciar.', 'error', -1);
+        }
+        
+        // Definir que estamos aguardando input
+        this.isWaitingForContinue = true;
+        
+        console.log('🚫 Overlay de trapaça exibido - aguardando ESPAÇO para reiniciar');
+    }
+    
+    // Verificar cruzamento da linha de largada com detecção de lado
+    checkStartLineCrossing(carX, carY) {
+        if (!this.lastCarPosition) {
+            this.lastCarPosition = { x: carX, y: carY };
+            return null;
+        }
+
+        const startPoint = this.trackPoints[0];
         const currentTrackProgress = this.calculateTrackProgress(carX, carY);
         const expectedDirection = this.getExpectedDirectionAtProgress(currentTrackProgress);
         
@@ -1554,35 +1520,112 @@ class Game {
         
         return t >= 0 && t <= 1 && u >= 0 && u <= 1;
     }
-    
-    // Lidar com detecção de cheat
-    handleCheatDetection(reason) {
-        console.log('🚨 CHEAT DETECTED:', reason);
-        this.isRunning = false;
-        this.isPaused = false;
-        
-        // Parar carro
-        this.carController.setControls(false, false);
-        this.carController.speed = 0;
-        
-        // Configurar para aguardar input do usuário (como no game.js original)
-        this.isWaitingForContinue = true;
-        
-        // Mostrar overlay de cheat se UI suportar
-        if (this.ui && typeof this.ui.showOverlay === 'function') {
-            this.ui.showOverlay('cheat', { reason });
-        }
-        
-        console.log('🔒 Waiting for user input to restart after cheat detection');
-    }
 
     startLap() {
         this.lapStartTime = Date.now();
         this.hasCompletedLap = false; // Reset flag para permitir timer e detecção de completamento
+        
+        // Inicializar zona anti-trapaça no modo contínuo
+        const gameMode = this.ui?.getGameMode ? this.ui.getGameMode() : 'classic';
+        console.log('🎮 Game mode detected in startLap():', gameMode);
+        
+        if (gameMode === 'continuous') {
+            console.log('🔴 Initializing anti-cheat zone for continuous mode...');
+            console.log('🔍 Current state:', {
+                trackPointsExists: !!this.trackPoints,
+                trackPointsLength: this.trackPoints?.length,
+                antiCheatZoneExists: !!this.antiCheatZone,
+                antiCheatZoneValid: this.antiCheatZone && !isNaN(this.antiCheatZone.x)
+            });
+            
+            // Só inicializar se não existe ou está inválida
+            if (!this.antiCheatZone || isNaN(this.antiCheatZone.x)) {
+                this.initializeAntiCheatZone();
+            } else {
+                console.log('✅ Anti-cheat zone already initialized and valid');
+            }
+        } else {
+            console.log('🏁 Classic mode detected - no anti-cheat zone needed');
+        }
+        
         console.log('🏁 Lap started!');
+    }
+    
+    // Inicializar zona anti-trapaça
+    initializeAntiCheatZone() {
+        console.log('🔍 Estado das flags ANTES de inicializar zona:', {
+            hasLeftStartZone: this.hasLeftStartZone,
+            cheatingDetected: this.cheatingDetected
+        });
+        
+        console.log('🔍 Debug initializeAntiCheatZone:', {
+            trackPointsExists: !!this.trackPoints,
+            trackPointsLength: this.trackPoints?.length,
+            firstPoint: this.trackPoints?.[0],
+            secondPoint: this.trackPoints?.[1]
+        });
+        
+        // Verificar se trackPoints existe e tem pelo menos 2 pontos
+        if (!this.trackPoints || this.trackPoints.length < 2) {
+            console.log('⚠️ trackPoints não disponível ainda, não é possível inicializar zona anti-trapaça');
+            this.antiCheatZone = null;
+            return;
+        }
+        
+        const startPoint = this.trackPoints[0];
+        const nextPoint = this.trackPoints[1];
+        
+        console.log('🔍 Points for anti-cheat zone:', { startPoint, nextPoint });
+        
+        // Calcular escala localmente se carController.scale não estiver disponível
+        let scale = this.carController?.scale;
+        if (!scale || isNaN(scale)) {
+            scale = Math.min(this.canvas.width, this.canvas.height) / 400;
+            console.log('⚠️ carController.scale inválido, calculando escala localmente:', scale);
+        } else {
+            console.log('✅ Usando escala do carController:', scale);
+        }
+        
+        // Calcular posição da zona de saída
+        const carSize = scale * 3;
+        const zoneDistance = carSize * 2; // Bem próximo: apenas 2x o tamanho do carro
+        
+        const dx = nextPoint.x - startPoint.x;
+        const dy = nextPoint.y - startPoint.y;
+        const length = Math.sqrt(dx * dx + dy * dy);
+        const normalizedDx = dx / length;
+        const normalizedDy = dy / length;
+        
+        const zoneX = startPoint.x + normalizedDx * zoneDistance;
+        const zoneY = startPoint.y + normalizedDy * zoneDistance;
+        
+        console.log('🔍 Zone calculation:', {
+            scale, carSize, zoneDistance, dx, dy, length, normalizedDx, normalizedDy, zoneX, zoneY
+        });
+        
+        this.antiCheatZone = {
+            x: zoneX,
+            y: zoneY,
+            radius: carSize * 3, // Zona bem maior para não conseguir passar pelo lado
+            isActive: false
+        };
+        
+        console.log('🎯 Zona anti-trapaça inicializada:', this.antiCheatZone);
+        
+        console.log('🔍 Estado das flags DEPOIS de inicializar zona:', {
+            hasLeftStartZone: this.hasLeftStartZone,
+            cheatingDetected: this.cheatingDetected
+        });
     }
 
     completeLap() {
+        // ⚠️ VERIFICAR TRAPAÇA ANTES DE COMPLETAR A VOLTA
+        if (this.cheatingDetected) {
+            console.log('🚫 TRAPAÇA DETECTADA AO COMPLETAR VOLTA! Mostrando overlay de erro...');
+            this.handleCheatDetected();
+            return; // Não completar a volta se houve trapaça
+        }
+        
         const lapTime = Date.now() - this.lapStartTime;
         
         // IMPORTANTE: Marcar que a volta foi completada IMEDIATAMENTE para parar o timer
@@ -1640,6 +1683,12 @@ class Game {
             this.hasCompletedLap = false; // IMPORTANTE: Reset flag para permitir timer continuar
             console.log('⏰ Timer resetado para modo contínuo - nova volta iniciada');
         }
+        
+        // ✅ RESETAR FLAGS DE ANTI-TRAPAÇA PARA PRÓXIMA VOLTA
+        this.hasLeftStartZone = false;
+        this.cheatingDetected = false;
+        this.wasInsideAntiCheatZone = false;
+        console.log('🔄 VOLTA COMPLETADA COM SUCESSO - Anti-trapaça resetado para próxima volta');
     }
     
     // Pausar jogo após completar volta (modo clássico)
@@ -1733,6 +1782,8 @@ class Game {
         // Desenhar pista
         this.drawTrack();
         
+        // Zona anti-trapaça ativa mas invisível (funcionalidade mantida)
+        
         // Desenhar carro
         this.drawCar();
     }
@@ -1816,80 +1867,24 @@ class Game {
     }
 
     drawStartLine() {
-        // Usar o primeiro ponto da pista (ponto 0)
+        // Use EXACT same logic as reference project (beautified.js line 8877-8879)
         const startPoint = this.trackPoints[0];
-        const nextPoint = this.trackPoints[1];
         
-        // Calcular direção da pista neste ponto
-        const dx = nextPoint.x - startPoint.x;
-        const dy = nextPoint.y - startPoint.y;
-        const length = Math.sqrt(dx * dx + dy * dy);
+        // Scale based on canvas dimensions - same as reference
+        const scale = Math.min(this.canvas.width, this.canvas.height) / 400;
+        const s = 40 * scale; // width of start line (same as reference)
+        const y = 10 * scale; // height of start line (same as reference)
         
-        // Calcular perpendicular para desenhar linha que cruza toda a pista
-        let perpX = -dy / length;
-        let perpY = dx / length;
-        
-        // DETECÇÃO INTELIGENTE DE CURVA E DIREÇÃO
-        const curveInfo = this.detectCurveDirection(0);
-        
-        if (curveInfo.isCurve && Math.abs(curveInfo.angle) > 8) { // Reduzido de 15° para 8°
-            // Ajustar linha baseado na direção real da curva
-            let adjustmentAngle;
-            
-            if (curveInfo.direction === 'left') {
-                // Curva para esquerda - ajustar linha no sentido horário
-                adjustmentAngle = Math.abs(curveInfo.angle) * 0.4; // Aumentado de 0.3 para 0.4
-            } else {
-                // Curva para direita - ajustar linha no sentido anti-horário  
-                adjustmentAngle = -Math.abs(curveInfo.angle) * 0.4; // Aumentado de 0.3 para 0.4
-            }
-            
-            const cos_adj = Math.cos(adjustmentAngle);
-            const sin_adj = Math.sin(adjustmentAngle);
-            const newPerpX = perpX * cos_adj - perpY * sin_adj;
-            const newPerpY = perpX * sin_adj + perpY * cos_adj;
-            perpX = newPerpX;
-            perpY = newPerpY;
-        }
-        
-        const halfWidth = this.trackWidth / 2;
-        
-        // Estender a linha um pouco além das bordas para garantir cobertura total
-        const extension = 8; // Aumentado de 5 para 8 pixels extras
-        const extendedHalfWidth = halfWidth + extension;
-        
-        // Linha branca da largada (estendida)
-        this.ctx.strokeStyle = '#FFFFFF';
-        this.ctx.lineWidth = 4;
-        this.ctx.beginPath();
-        this.ctx.moveTo(
-            startPoint.x + perpX * extendedHalfWidth,
-            startPoint.y + perpY * extendedHalfWidth
-        );
-        this.ctx.lineTo(
-            startPoint.x - perpX * extendedHalfWidth,
-            startPoint.y - perpY * extendedHalfWidth
-        );
-        this.ctx.stroke();
-        
-        // Padrão xadrez da linha de largada (usando a largura estendida)
-        const checkSize = 8;
-        const totalWidth = extendedHalfWidth * 2;
-        const numChecks = Math.floor(totalWidth / checkSize);
-        
-        this.ctx.fillStyle = '#000000';
-        for (let i = 0; i < numChecks; i++) {
-            if (i % 2 === 0) { // Alternar xadrez
-                const t = (i / numChecks - 0.5) * 2; // Normalizar de -1 a 1
-                const checkX = startPoint.x + perpX * extendedHalfWidth * t;
-                const checkY = startPoint.y + perpY * extendedHalfWidth * t;
-                
-                // Criar quadrados xadrez alinhados com a linha
-                this.ctx.save();
-                this.ctx.translate(checkX, checkY);
-                this.ctx.rotate(Math.atan2(dy, dx));
-                this.ctx.fillRect(-checkSize/2, -checkSize/2, checkSize, checkSize);
-                this.ctx.restore();
+        // Draw checkered pattern - EXACT same logic as reference
+        for (let e = 0; e < 8; e++) {
+            for (let t = 0; t < 2; t++) {
+                this.ctx.fillStyle = (e + t) % 2 == 0 ? "#1A1A1A" : "#FFFFFF";
+                this.ctx.fillRect(
+                    startPoint.x - s / 2 + e * s / 8, 
+                    startPoint.y - y + t * y, 
+                    s / 8, 
+                    y
+                );
             }
         }
     }
@@ -1954,6 +1949,53 @@ class Game {
         
         // Reset line dash
         this.ctx.setLineDash([]);
+    }
+
+    // Desenhar zona anti-trapaça vermelha (temporário para teste)
+    drawAntiCheatZone() {
+        if (!this.antiCheatZone) return;
+        
+        const zone = this.antiCheatZone;
+        
+        // Cor baseada no estado
+        if (this.cheatingDetected) {
+            this.ctx.fillStyle = 'rgba(255, 0, 0, 0.8)'; // VERMELHO FORTE: Trapaça detectada
+        } else if (this.hasLeftStartZone) {
+            this.ctx.fillStyle = 'rgba(0, 255, 0, 0.6)'; // VERDE: Carro saiu normalmente da zona
+        } else {
+            this.ctx.fillStyle = 'rgba(100, 100, 100, 0.3)'; // CINZA: Estado inicial (carro ainda na zona)
+        }
+        
+        // Desenhar círculo da zona
+        this.ctx.beginPath();
+        this.ctx.arc(zone.x, zone.y, zone.radius, 0, 2 * Math.PI);
+        this.ctx.fill();
+        
+        // Contorno
+        this.ctx.strokeStyle = this.cheatingDetected ? '#ff0000' : '#000000';
+        this.ctx.lineWidth = 2;
+        this.ctx.stroke();
+        
+        // Texto indicativo (temporário para debug)
+        this.ctx.fillStyle = '#000000';
+        this.ctx.font = '12px Arial';
+        this.ctx.textAlign = 'center';
+        this.ctx.fillText('ZONA ANTI-TRAPAÇA', zone.x, zone.y - zone.radius - 10);
+        
+        // Status da zona
+        if (this.cheatingDetected) {
+            this.ctx.fillStyle = '#ff0000';
+            this.ctx.font = 'bold 10px Arial';
+            this.ctx.fillText('🚫 TRAPAÇA!', zone.x, zone.y);
+        } else if (this.hasLeftStartZone) {
+            this.ctx.fillStyle = '#00aa00';
+            this.ctx.font = 'bold 10px Arial';
+            this.ctx.fillText('✅ OK', zone.x, zone.y);
+        } else {
+            this.ctx.fillStyle = '#666666';
+            this.ctx.font = '10px Arial';
+            this.ctx.fillText('⏳ Saindo...', zone.x, zone.y);
+        }
     }
 
     drawCar() {
