@@ -999,7 +999,7 @@ class Game {
             williams: { primary: '#004080', secondary: '#FFFFFF' },       // Azul oceano com branco
             rb: { primary: '#4169E1', secondary: '#FFFFFF' },             // Azul royal com branco
             sauber: { primary: '#228B22', secondary: '#000000' },         // Verde verdão com preto (Stake)
-            haas: { primary: '#000000', secondary: '#f31a1aff' }            // Preto com branco
+            haas: { primary: '#000000', secondary: '#e91010ff' }            // Preto com branco
         };
         
         const teamData = teamColors[teamValue] || teamColors.ferrari;

@@ -144,11 +144,19 @@ class TrackGenerator {
         this.nameInput = null;
         this.modalStatusMsg = null;
         
+        // Game mode variables
+        this.gameLoop = null;
+        this.gameStartTime = null;
+        this.originalInstructions = null;
+        
         this.initializeCanvas();
         this.initializeModal();
         this.bindEvents();
         this.bindDrawingEvents();
         this.renderGridWithOffset();
+        
+        // Initialize button states
+        this.updateSubmitButton();
     }
 
     initializeCanvas() {
@@ -174,9 +182,10 @@ class TrackGenerator {
         this.modal = document.getElementById('submitModal');
         if (this.modal) {
             this.modalSubmitBtn = document.getElementById('modalSubmitBtn');
-            this.closeBtn = this.modal.querySelector('.close-btn');
-            this.nameInput = document.getElementById('nameInput');
-            this.modalStatusMsg = document.getElementById('modalStatusMsg');
+            this.closeBtn = document.getElementById('closeModal');
+            this.trackNameInput = document.getElementById('trackName');
+            this.nameInput = document.getElementById('pilotName');
+            this.modalStatusMsg = document.getElementById('statusMessage');
         }
     }
 
@@ -185,7 +194,7 @@ class TrackGenerator {
         const clearBtn = document.getElementById('clearBtn');
         const loadExampleBtn = document.getElementById('loadExampleBtn');
         const copyCodeBtn = document.getElementById('copyCodeBtn');
-        const submitBtn = document.getElementById('submitBtn');
+        const submitBtn = document.getElementById('submitTrackBtn');
         const testTrackBtn = document.getElementById('testTrackBtn');
         
         if (undoBtn) undoBtn.addEventListener('click', () => this.undoLastPoint());
@@ -939,14 +948,27 @@ class TrackGenerator {
     }
 
     updateSubmitButton() {
-        const submitBtn = document.getElementById('submitBtn');
+        const submitBtn = document.getElementById('submitTrackBtn');
         const statusMsg = document.getElementById('statusMsg');
         const testTrackBtn = document.getElementById('testTrackBtn');
         
         if (!statusMsg) return;
         
+        // Submit button is always visible, just disabled when no valid track
+        if (submitBtn) {
+            // Always show submit button
+            submitBtn.style.display = 'inline-block';
+            
+            if (this.trackPoints.length === 0) {
+                submitBtn.disabled = true;
+            } else {
+                const isValid = this.validateTrackDesign().isValid;
+                submitBtn.disabled = !isValid;
+            }
+        }
+        
+        // Test button logic
         if (this.trackPoints.length === 0) {
-            if (submitBtn) submitBtn.style.display = 'none';
             if (testTrackBtn) testTrackBtn.disabled = true;
             statusMsg.textContent = '';
             statusMsg.className = '';
@@ -956,7 +978,6 @@ class TrackGenerator {
         const isValid = this.validateTrackDesign().isValid;
         
         if (isValid) {
-            if (submitBtn) submitBtn.style.display = 'inline-block';
             if (testTrackBtn) {
                 testTrackBtn.disabled = false;
                 testTrackBtn.style.backgroundColor = '#28a745';
@@ -966,7 +987,6 @@ class TrackGenerator {
             statusMsg.className = 'status-ready';
             statusMsg.style.display = 'block';
         } else {
-            if (submitBtn) submitBtn.style.display = 'none';
             if (testTrackBtn) {
                 testTrackBtn.disabled = true;
                 testTrackBtn.style.backgroundColor = '';
@@ -1018,6 +1038,7 @@ class TrackGenerator {
         this.updatePointList();
         this.updateCodeOutput();
         this.renderTrack();
+        this.updateSubmitButton(); // Garantir que o botão seja atualizado
     }
 
     updatePointList() {
@@ -1095,32 +1116,254 @@ class TrackGenerator {
             return;
         }
 
-        // Save the custom track to localStorage
+        // Switch to game mode
+        this.switchToGameMode();
+    }
+
+    switchToGameMode() {
+        // Hide track generator UI elements
+        this.hideTrackGeneratorUI();
+        
+        // Change button to "Back to Editor"
+        const testTrackBtn = document.getElementById('testTrackBtn');
+        if (testTrackBtn) {
+            testTrackBtn.textContent = '← Voltar ao Editor';
+            testTrackBtn.style.backgroundColor = '#6c757d';
+            testTrackBtn.onclick = () => this.switchBackToEditor();
+        }
+        
+        // Initialize game engine
+        this.initializeGameEngine();
+    }
+    
+    switchBackToEditor() {
+        // Show track generator UI elements
+        this.showTrackGeneratorUI();
+        
+        // Change button back to "Test Track"
+        const testTrackBtn = document.getElementById('testTrackBtn');
+        if (testTrackBtn) {
+            testTrackBtn.textContent = '🎮 Testar Pista';
+            testTrackBtn.style.backgroundColor = '#28a745';
+            testTrackBtn.onclick = () => this.testTrackInGame();
+        }
+        
+        // Stop game engine
+        this.stopGameEngine();
+        
+        // Restore original instructions
+        this.restoreOriginalInstructions();
+        
+        // Return to track generator view
+        this.renderTrack();
+    }
+    
+    restoreOriginalInstructions() {
+        const instructionsArea = document.querySelector('.times-column');
+        if (instructionsArea && this.originalInstructions) {
+            instructionsArea.innerHTML = this.originalInstructions;
+        }
+    }
+    
+    hideTrackGeneratorUI() {
+        // Hide drawing instructions and track generator specific elements
+        const elements = [
+            'undoBtn', 'clearBtn', 'loadExampleBtn', 'submitTrackBtn'
+        ];
+        
+        elements.forEach(id => {
+            const el = document.getElementById(id);
+            if (el) el.style.display = 'none';
+        });
+        
+        // Hide status message
+        const statusMsg = document.getElementById('statusMsg');
+        if (statusMsg) statusMsg.style.display = 'none';
+    }
+    
+    showTrackGeneratorUI() {
+        // Show drawing instructions and track generator specific elements
+        const elements = [
+            'undoBtn', 'clearBtn', 'loadExampleBtn', 'submitTrackBtn'
+        ];
+        
+        elements.forEach(id => {
+            const el = document.getElementById(id);
+            if (el) el.style.display = 'inline-block';
+        });
+        
+        // Show status message
+        const statusMsg = document.getElementById('statusMsg');
+        if (statusMsg) statusMsg.style.display = 'block';
+    }
+    
+    initializeGameEngine() {
+        // Prepare track data for game engine
         const customTrackData = {
             trackPoints: this.trackPoints,
             generatedCode: this.generatedCode,
             canvasSize: {
                 width: this.GAME_BASE_WIDTH,
                 height: this.GAME_BASE_HEIGHT
-            },
-            timestamp: Date.now()
+            }
         };
-
-        localStorage.setItem('customTrack', JSON.stringify(customTrackData));
         
-        // Navigate to the main game
-        window.location.href = 'index.html';
+        // TODO: Initialize game engine with this track data
+        // This will be the actual game implementation
+        this.startGameSimulation(customTrackData);
+    }
+    
+    stopGameEngine() {
+        // TODO: Stop game engine, clear timers, etc.
+        if (this.gameLoop) {
+            clearInterval(this.gameLoop);
+            this.gameLoop = null;
+        }
+    }
+    
+    startGameSimulation(trackData) {
+        // Clear canvas
+        this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
+        
+        // Set up game background
+        this.ctx.fillStyle = '#87CEEB'; // Sky blue like main game
+        this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
+        
+        // Draw track for game
+        this.renderGameTrack(trackData.trackPoints);
+        
+        // Simple game timer display
+        this.gameStartTime = Date.now();
+        this.gameLoop = setInterval(() => {
+            this.updateGameDisplay();
+        }, 100);
+        
+        // Show game instructions in left panel
+        this.showGameInstructions();
+    }
+    
+    renderGameTrack(trackPoints) {
+        const scale = this.getGameScale();
+        const gameWidth = this.GAME_BASE_WIDTH * scale;
+        const gameHeight = this.GAME_BASE_HEIGHT * scale;
+        
+        const canvasCenterX = this.canvas.width / 2;
+        const canvasCenterY = this.canvas.height / 2;
+        
+        const gameAreaX = canvasCenterX - gameWidth / 2;
+        const gameAreaY = canvasCenterY - gameHeight / 2;
+        
+        // Convert track points to canvas coordinates
+        const canvasPoints = trackPoints.map(point => ({
+            x: gameAreaX + point.x * gameWidth,
+            y: gameAreaY + point.y * gameHeight,
+            angle: point.angle
+        }));
+        
+        // Draw track background (wide line)
+        this.ctx.strokeStyle = '#E5E5E5';
+        this.ctx.lineWidth = this.getGameTrackWidth();
+        this.ctx.lineCap = 'round';
+        this.ctx.lineJoin = 'round';
+        
+        this.ctx.beginPath();
+        this.ctx.moveTo(canvasPoints[0].x, canvasPoints[0].y);
+        
+        for (let i = 1; i < canvasPoints.length; i++) {
+            this.ctx.lineTo(canvasPoints[i].x, canvasPoints[i].y);
+        }
+        
+        this.ctx.stroke();
+        
+        // Draw center line
+        this.ctx.strokeStyle = '#999';
+        this.ctx.lineWidth = 2;
+        
+        this.ctx.beginPath();
+        this.ctx.moveTo(canvasPoints[0].x, canvasPoints[0].y);
+        
+        for (let i = 1; i < canvasPoints.length; i++) {
+            this.ctx.lineTo(canvasPoints[i].x, canvasPoints[i].y);
+        }
+        
+        this.ctx.stroke();
+        
+        // Draw game elements
+        this.drawGameElements(canvasPoints, scale);
+        
+        // Draw a simple car at start position
+        this.drawSimpleCar(canvasPoints[0]);
+    }
+    
+    drawSimpleCar(startPoint) {
+        this.ctx.fillStyle = '#FF0000';
+        this.ctx.beginPath();
+        this.ctx.arc(startPoint.x, startPoint.y, 6, 0, 2 * Math.PI);
+        this.ctx.fill();
+        
+        // Car border
+        this.ctx.strokeStyle = '#000000';
+        this.ctx.lineWidth = 2;
+        this.ctx.stroke();
+    }
+    
+    updateGameDisplay() {
+        const elapsed = (Date.now() - this.gameStartTime) / 1000;
+        
+        // Update timer in status area or create a simple overlay
+        this.ctx.save();
+        this.ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
+        this.ctx.fillRect(10, 10, 120, 30);
+        this.ctx.fillStyle = '#FFFFFF';
+        this.ctx.font = '14px IBM Plex Mono';
+        this.ctx.fillText(`Time: ${elapsed.toFixed(1)}s`, 15, 30);
+        this.ctx.restore();
+    }
+    
+    showGameInstructions() {
+        // Update the left panel with game-specific instructions
+        const instructionsArea = document.querySelector('.times-column');
+        if (instructionsArea) {
+            const originalContent = instructionsArea.innerHTML;
+            this.originalInstructions = originalContent;
+            
+            instructionsArea.innerHTML = `
+                <div style="background: #e7f3ff; border: 1px solid #b8daff; border-radius: 6px; padding: 12px; margin-bottom: 15px;">
+                    <h4 style="color: #004085; margin-bottom: 8px; font-size: 0.8rem;">🎮 Modo de Teste</h4>
+                    <p style="color: #004085; font-size: 0.75rem; line-height: 1.3; margin-bottom: 8px;">
+                        Esta é uma prévia da sua pista em modo de jogo.
+                    </p>
+                    <ul style="margin-left: 15px;">
+                        <li style="margin-bottom: 4px; color: #004085; font-size: 0.75rem; line-height: 1.3;">Timer rodando</li>
+                        <li style="margin-bottom: 4px; color: #004085; font-size: 0.75rem; line-height: 1.3;">Pista renderizada como no jogo</li>
+                        <li style="margin-bottom: 4px; color: #004085; font-size: 0.75rem; line-height: 1.3;">Carro posicionado na largada</li>
+                        <li style="margin-bottom: 4px; color: #004085; font-size: 0.75rem; line-height: 1.3;">Clique "Voltar ao Editor" para continuar editando</li>
+                    </ul>
+                </div>
+                
+                <div style="background: #d4edda; border: 1px solid #c3e6cb; border-radius: 6px; padding: 12px; margin-bottom: 15px;">
+                    <h4 style="color: #155724; margin-bottom: 8px; font-size: 0.8rem;">✅ Pista Válida</h4>
+                    <p style="color: #155724; font-size: 0.75rem; line-height: 1.3;">
+                        Sua pista está pronta para ser enviada ao admin!
+                    </p>
+                </div>
+            `;
+        }
     }
 
     // Modal methods
     openSubmitModal() {
         if (this.modal) {
             this.modal.classList.add('show');
-            this.nameInput.focus();
-            this.modalStatusMsg.textContent = '';
-            this.modalStatusMsg.className = '';
-            this.modalSubmitBtn.disabled = false;
-            this.modalSubmitBtn.textContent = 'Submit to Hotlap Daily';
+            if (this.trackNameInput) this.trackNameInput.focus();
+            if (this.modalStatusMsg) {
+                this.modalStatusMsg.textContent = '';
+                this.modalStatusMsg.className = 'status-message';
+            }
+            if (this.modalSubmitBtn) {
+                this.modalSubmitBtn.disabled = false;
+                this.modalSubmitBtn.textContent = '📤 Submit to Admin';
+            }
         }
     }
 
@@ -1131,11 +1374,24 @@ class TrackGenerator {
     }
 
     async submitTrack() {
-        const name = this.nameInput ? this.nameInput.value.trim() : '';
+        const trackName = this.trackNameInput ? this.trackNameInput.value.trim() : '';
+        const pilotName = this.nameInput ? this.nameInput.value.trim() : '';
         
-        if (!name) {
+        if (!trackName) {
+            this.modalStatusMsg.textContent = '⚠️ Please enter a track name.';
+            this.modalStatusMsg.className = 'status-message status-error';
+            return;
+        }
+        
+        if (!pilotName) {
             this.modalStatusMsg.textContent = '⚠️ Please enter your name.';
-            this.modalStatusMsg.className = 'status-error';
+            this.modalStatusMsg.className = 'status-message status-error';
+            return;
+        }
+        
+        if (this.trackPoints.length === 0) {
+            this.modalStatusMsg.textContent = '⚠️ No track to submit. Please draw a track first.';
+            this.modalStatusMsg.className = 'status-message status-error';
             return;
         }
         
@@ -1144,44 +1400,53 @@ class TrackGenerator {
         
         submitBtn.disabled = true;
         submitBtn.textContent = 'Submitting...';
-        statusMsg.textContent = '⏳ Submitting track...';
-        statusMsg.className = 'status-loading';
+        statusMsg.textContent = '⏳ Submitting track to admin...';
+        statusMsg.className = 'status-message status-loading';
         
         try {
-            const response = await fetch(`https://api.airtable.com/v0/base_id/table_name`, {
-                method: 'POST',
-                headers: {
-                    'Authorization': `Bearer token`,
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify({
-                    fields: {
-                        'TrackCode': this.generatedCode,
-                        'Name': name
-                    }
-                })
-            });
+            // Get existing submissions from localStorage
+            const existingSubmissions = JSON.parse(localStorage.getItem('userTrackSubmissions') || '[]');
             
-            if (response.ok) {
-                statusMsg.textContent = '🎉 Track submitted successfully!';
-                statusMsg.className = 'status-success';
-                setTimeout(() => {
-                    this.closeSubmitModal();
-                    this.clearAllPoints();
-                }, 2000);
-            } else {
-                const errorText = await response.text();
-                console.error('Submission failed:', errorText);
-                statusMsg.textContent = '⚠️ Submission failed. Please try again.';
-                statusMsg.className = 'status-error';
-                submitBtn.textContent = 'Retry Submission';
-                submitBtn.disabled = false;
-            }
+            // Create new submission with JSON data instead of JavaScript code
+            const submission = {
+                id: Date.now(),
+                trackName: trackName,
+                pilotName: pilotName,
+                trackCode: JSON.stringify({
+                    trackPoints: this.trackPoints,
+                    canvasSize: {
+                        width: this.GAME_BASE_WIDTH,
+                        height: this.GAME_BASE_HEIGHT
+                    }
+                }),
+                submittedAt: new Date().toISOString(),
+                status: 'pending' // pending, approved, rejected
+            };
+            
+            // Add to submissions array
+            existingSubmissions.push(submission);
+            
+            // Save back to localStorage
+            localStorage.setItem('userTrackSubmissions', JSON.stringify(existingSubmissions));
+            
+            statusMsg.textContent = '🎉 Track submitted successfully! Admin will review it soon.';
+            statusMsg.className = 'status-message status-success';
+            
+            setTimeout(() => {
+                this.closeSubmitModal();
+                // Optionally clear the track
+                // this.clearAllPoints();
+                
+                // Clear form fields
+                if (this.trackNameInput) this.trackNameInput.value = '';
+                if (this.nameInput) this.nameInput.value = '';
+            }, 2000);
+            
         } catch (error) {
             console.error('Submission error:', error);
-            statusMsg.textContent = '⚠️ Network error. Please check your connection and try again.';
-            statusMsg.className = 'status-error';
-            submitBtn.textContent = 'Retry Submission';
+            statusMsg.textContent = '⚠️ Error submitting track. Please try again.';
+            statusMsg.className = 'status-message status-error';
+            submitBtn.textContent = '📤 Retry Submission';
             submitBtn.disabled = false;
         }
     }

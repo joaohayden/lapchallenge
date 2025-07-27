@@ -10,7 +10,10 @@
             background: #f5f5f5;
             font-family: 'Courier New', monospace;
             margin: 0;
-            padding: 20px;
+            padding: 10px;
+            min-height: 100vh;
+            overflow-x: auto;
+            overflow-y: auto;
         }
         
         .admin-container {
@@ -19,23 +22,30 @@
             background: white;
             border-radius: 8px;
             box-shadow: 0 4px 6px rgba(0,0,0,0.1);
-            overflow: hidden;
+            overflow: visible;
+            min-height: calc(100vh - 20px);
         }
         
         .admin-header {
             background: #2c3e50;
             color: white;
-            padding: 20px;
+            padding: 15px;
             text-align: center;
         }
         
         .admin-header h1 {
             margin: 0;
-            font-size: 24px;
+            font-size: 20px;
+        }
+        
+        .admin-header p {
+            margin: 5px 0 0 0;
+            font-size: 14px;
+            opacity: 0.9;
         }
         
         .login-form {
-            padding: 40px;
+            padding: 30px 20px;
             text-align: center;
             max-width: 400px;
             margin: 0 auto;
@@ -43,26 +53,35 @@
         
         .admin-panel {
             display: none;
-            padding: 20px;
+            padding: 15px;
+            overflow-y: auto;
+            max-height: calc(100vh - 140px);
         }
         
         .form-group {
-            margin-bottom: 20px;
+            margin-bottom: 15px;
         }
         
         .form-group label {
             display: block;
             margin-bottom: 5px;
             font-weight: bold;
+            font-size: 14px;
         }
         
         .form-group input, .form-group select, .form-group textarea {
             width: 100%;
-            padding: 10px;
+            padding: 8px;
             border: 2px solid #ddd;
             border-radius: 4px;
             font-size: 14px;
             box-sizing: border-box;
+            font-family: 'Courier New', monospace;
+        }
+        
+        .form-group textarea {
+            resize: vertical;
+            min-height: 80px;
         }
         
         .form-group input:focus, .form-group select:focus, .form-group textarea:focus {
@@ -73,12 +92,13 @@
         .btn {
             background: #3498db;
             color: white;
-            padding: 12px 24px;
+            padding: 10px 18px;
             border: none;
             border-radius: 4px;
-            font-size: 16px;
+            font-size: 14px;
             cursor: pointer;
-            margin: 5px;
+            margin: 3px;
+            font-family: 'Courier New', monospace;
         }
         
         .btn:hover {
@@ -103,7 +123,7 @@
         
         .track-preview {
             width: 100%;
-            height: 300px;
+            height: 200px;
             border: 2px solid #ddd;
             border-radius: 4px;
             background: #f9f9f9;
@@ -112,35 +132,50 @@
         
         .current-track-info {
             background: #ecf0f1;
-            padding: 20px;
+            padding: 15px;
             border-radius: 4px;
-            margin-bottom: 20px;
+            margin-bottom: 15px;
+        }
+        
+        .current-track-info h2 {
+            margin-top: 0;
+            margin-bottom: 10px;
+            font-size: 18px;
         }
         
         .admin-sections {
             display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 20px;
-            margin-top: 20px;
+            grid-template-columns: 1fr;
+            gap: 15px;
+            margin-top: 15px;
         }
         
         .admin-section {
             background: #f8f9fa;
-            padding: 20px;
+            padding: 15px;
             border-radius: 4px;
             border: 1px solid #dee2e6;
         }
         
         .admin-section h3 {
             margin-top: 0;
+            margin-bottom: 10px;
             color: #2c3e50;
+            font-size: 16px;
+        }
+        
+        .admin-section p {
+            margin-bottom: 15px;
+            font-size: 13px;
+            color: #666;
         }
         
         .status-message {
             padding: 10px;
             border-radius: 4px;
-            margin-bottom: 20px;
+            margin-bottom: 15px;
             display: none;
+            font-size: 14px;
         }
         
         .status-message.success {
@@ -156,18 +191,19 @@
         }
         
         .track-list {
-            max-height: 300px;
+            max-height: 200px;
             overflow-y: auto;
             border: 1px solid #ddd;
             border-radius: 4px;
         }
         
         .track-item {
-            padding: 10px;
+            padding: 8px;
             border-bottom: 1px solid #eee;
             display: flex;
             justify-content: space-between;
             align-items: center;
+            font-size: 13px;
         }
         
         .track-item:last-child {
@@ -188,20 +224,147 @@
             gap: 5px;
         }
         
+        /* User submissions specific styles */
+        .submission-item {
+            padding: 12px;
+            border-bottom: 1px solid #eee;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 13px;
+            background: #f9f9f9;
+        }
+        
+        .submission-item:last-child {
+            border-bottom: none;
+        }
+        
+        .submission-item.pending {
+            border-left: 4px solid #ffc107;
+        }
+        
+        .submission-item.approved {
+            border-left: 4px solid #28a745;
+            background: #f0f8f0;
+        }
+        
+        .submission-item.rejected {
+            border-left: 4px solid #dc3545;
+            background: #fdf2f2;
+        }
+        
+        .submission-info {
+            flex: 1;
+        }
+        
+        .submission-info .submission-title {
+            font-weight: bold;
+            color: #333;
+            margin-bottom: 2px;
+        }
+        
+        .submission-info .submission-meta {
+            font-size: 11px;
+            color: #666;
+        }
+        
+        .submission-actions {
+            display: flex;
+            gap: 5px;
+        }
+        
+        .btn-approve {
+            background: #28a745 !important;
+            color: white !important;
+        }
+        
+        .btn-approve:hover {
+            background: #218838 !important;
+        }
+        
+        .btn-reject {
+            background: #dc3545 !important;
+            color: white !important;
+        }
+        
+        .btn-reject:hover {
+            background: #c82333 !important;
+        }
+        
+        .btn-preview {
+            background: #17a2b8 !important;
+            color: white !important;
+        }
+        
+        .btn-preview:hover {
+            background: #138496 !important;
+        }
+        
         .countdown-display {
-            font-size: 18px;
+            font-size: 16px;
             font-weight: bold;
             color: #e74c3c;
             text-align: center;
-            padding: 10px;
+            padding: 8px;
             background: #fff5f5;
             border-radius: 4px;
-            margin-bottom: 20px;
+            margin-bottom: 15px;
+        }
+        
+        /* Responsividade para telas menores */
+        @media (max-width: 1024px) {
+            body {
+                padding: 5px;
+            }
+            
+            .admin-container {
+                min-height: calc(100vh - 10px);
+            }
+            
+            .admin-header {
+                padding: 10px;
+            }
+            
+            .admin-header h1 {
+                font-size: 18px;
+            }
+            
+            .admin-panel {
+                padding: 10px;
+                max-height: calc(100vh - 120px);
+            }
+            
+            .admin-sections {
+                gap: 10px;
+            }
+            
+            .admin-section {
+                padding: 10px;
+            }
+            
+            .form-group textarea {
+                min-height: 60px;
+            }
+            
+            .track-preview {
+                height: 150px;
+            }
         }
         
         @media (max-width: 768px) {
             .admin-sections {
                 grid-template-columns: 1fr;
+            }
+            
+            .btn {
+                padding: 8px 12px;
+                font-size: 12px;
+                margin: 2px;
+            }
+            
+            .track-item .track-actions .btn {
+                padding: 4px 8px;
+                font-size: 11px;
             }
         }
     </style>
@@ -270,7 +433,7 @@
                     <div id="customTrackSection">
                         <div class="form-group">
                             <label for="trackData">Dados da Pista (JSON):</label>
-                            <textarea id="trackData" rows="8" placeholder='{"trackPoints": [{"x": 0.1, "y": 0.85}, ...]}'></textarea>
+                            <textarea id="trackData" rows="6" placeholder='{"trackPoints": [{"x": 0.1, "y": 0.85}, ...]}'></textarea>
                         </div>
                         
                         <div class="form-group">
@@ -281,10 +444,10 @@
                     
                     <canvas id="trackPreview" class="track-preview"></canvas>
                     
-                    <div style="text-align: center; margin-top: 15px;">
-                        <button class="btn btn-success" onclick="setTodaysTrack()">Aplicar Pista Agora</button>
+                    <div style="text-align: center; margin-top: 10px; flex-wrap: wrap; display: flex; justify-content: center; gap: 5px;">
+                        <button class="btn btn-success" onclick="setTodaysTrack()">Aplicar Agora</button>
                         <button class="btn" onclick="previewTrack()">Pré-visualizar</button>
-                        <button class="btn" onclick="importFromGame()">Importar do Jogo</button>
+                        <button class="btn" onclick="importFromGame()">Importar</button>
                     </div>
                 </div>
                 
@@ -304,7 +467,7 @@
                     
                     <div class="form-group">
                         <label for="tomorrowTrackData">Dados da Pista:</label>
-                        <textarea id="tomorrowTrackData" rows="6" placeholder="Deixe vazio para pista aleatória"></textarea>
+                        <textarea id="tomorrowTrackData" rows="4" placeholder="Deixe vazio para pista aleatória"></textarea>
                     </div>
                     
                     <div class="form-group">
@@ -312,25 +475,40 @@
                         <input type="text" id="tomorrowTrackName" placeholder="Ex: Monaco Street Circuit">
                     </div>
                     
-                    <div style="text-align: center; margin-top: 15px;">
+                    <div style="text-align: center; margin-top: 10px;">
                         <button class="btn btn-success" onclick="scheduleTomorrowTrack()">Programar para Amanhã</button>
+                    </div>
+                </div>
+                
+                <!-- User Track Submissions -->
+                <div class="admin-section">
+                    <h3>📮 Submissões de Usuários</h3>
+                    <p>Revisar e gerenciar pistas enviadas pelos usuários</p>
+                    
+                    <div id="userSubmissions" class="track-list">
+                        <!-- User submissions will be loaded here -->
+                    </div>
+                    
+                    <div style="text-align: center; margin-top: 10px; flex-wrap: wrap; display: flex; justify-content: center; gap: 5px;">
+                        <button class="btn" onclick="loadUserSubmissions()">Atualizar Submissões</button>
+                        <button class="btn btn-danger" onclick="clearAllSubmissions()">Limpar Todas</button>
                     </div>
                 </div>
             </div>
             
             <!-- Track History -->
-            <div class="admin-section" style="margin-top: 20px;">
+            <div class="admin-section" style="margin-top: 15px;">
                 <h3>📊 Histórico de Pistas</h3>
                 <div id="trackHistory" class="track-list">
                     <!-- Track history will be loaded here -->
                 </div>
-                <div style="text-align: center; margin-top: 15px;">
+                <div style="text-align: center; margin-top: 10px; flex-wrap: wrap; display: flex; justify-content: center; gap: 5px;">
                     <button class="btn" onclick="loadTrackHistory()">Atualizar Histórico</button>
                     <button class="btn btn-danger" onclick="clearTrackHistory()">Limpar Histórico</button>
                 </div>
             </div>
             
-            <div style="text-align: center; margin-top: 30px;">
+            <div style="text-align: center; margin-top: 20px; margin-bottom: 10px;">
                 <button class="btn btn-danger" onclick="logout()">Sair</button>
             </div>
         </div>

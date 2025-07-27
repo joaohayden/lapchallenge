@@ -1,0 +1,380 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Teste Admin Daily Tracks</title>
+    <style>
+        body {
+            font-family: 'IBM Plex Mono', monospace;
+            margin: 20px;
+            background: #f8f9fa;
+        }
+        
+        .admin-container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 8px;
+            padding: 20px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        
+        .btn {
+            background: #007bff;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 4px;
+            cursor: pointer;
+            margin: 5px;
+        }
+        
+        .btn:hover {
+            background: #0056b3;
+        }
+        
+        .btn-success {
+            background: #28a745;
+        }
+        
+        .btn-success:hover {
+            background: #1e7e34;
+        }
+        
+        .btn-danger {
+            background: #dc3545;
+        }
+        
+        .btn-danger:hover {
+            background: #c82333;
+        }
+        
+        .status-message {
+            padding: 10px;
+            border-radius: 4px;
+            margin: 10px 0;
+            display: none;
+        }
+        
+        .status-message.success {
+            background: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+        
+        .status-message.error {
+            background: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+        
+        #trackPreview {
+            border: 2px solid #dee2e6;
+            border-radius: 4px;
+            margin: 10px 0;
+        }
+        
+        .track-item {
+            background: #f8f9fa;
+            border: 1px solid #dee2e6;
+            border-radius: 4px;
+            padding: 10px;
+            margin: 5px 0;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .track-item.active {
+            background: #d4edda;
+            border-color: #c3e6cb;
+        }
+        
+        .submission-item {
+            background: #f8f9fa;
+            border: 1px solid #dee2e6;
+            border-radius: 4px;
+            padding: 15px;
+            margin: 10px 0;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .submission-item.pending {
+            border-left: 4px solid #ffc107;
+        }
+        
+        .submission-item.approved {
+            border-left: 4px solid #28a745;
+        }
+        
+        .submission-item.rejected {
+            border-left: 4px solid #dc3545;
+        }
+        
+        .form-group {
+            margin: 15px 0;
+        }
+        
+        .form-group label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+        }
+        
+        .form-group input,
+        .form-group select,
+        .form-group textarea {
+            width: 100%;
+            padding: 8px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            box-sizing: border-box;
+        }
+        
+        .form-group textarea {
+            height: 120px;
+            font-family: 'Courier New', monospace;
+        }
+        
+        .admin-section {
+            margin: 30px 0;
+            padding: 20px;
+            border: 1px solid #dee2e6;
+            border-radius: 8px;
+        }
+        
+        .admin-section h3 {
+            margin-top: 0;
+            color: #495057;
+        }
+        
+        #loginForm {
+            max-width: 400px;
+            margin: 50px auto;
+            padding: 30px;
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+        }
+        
+        #loginError {
+            background: #f8d7da;
+            color: #721c24;
+            padding: 10px;
+            border-radius: 4px;
+            margin: 10px 0;
+            display: none;
+        }
+        
+        .btn-approve {
+            background: #28a745;
+            font-size: 14px;
+            padding: 8px;
+        }
+        
+        .btn-reject {
+            background: #dc3545;
+            font-size: 14px;
+            padding: 8px;
+        }
+        
+        .btn-preview {
+            background: #6c757d;
+            font-size: 14px;
+            padding: 8px;
+        }
+        
+        .btn-secondary {
+            background: #6c757d;
+        }
+        
+        .btn-secondary:hover {
+            background: #545b62;
+        }
+    </style>
+</head>
+<body>
+    <div class="admin-container">
+        <h1>🏁 SpeedLaps Daily Tracks - Admin Panel</h1>
+        
+        <!-- Login Form -->
+        <div id="loginForm">
+            <h2>Login Admin</h2>
+            <div class="form-group">
+                <label for="username">Usuário:</label>
+                <input type="text" id="username" placeholder="admin">
+            </div>
+            <div class="form-group">
+                <label for="password">Senha:</label>
+                <input type="password" id="password" placeholder="admin">
+            </div>
+            <button class="btn" onclick="admin.login()">Entrar</button>
+            <div id="loginError">Credenciais inválidas!</div>
+        </div>
+
+        <!-- Admin Panel -->
+        <div id="adminPanel" style="display: none;">
+            
+            <!-- Status Message -->
+            <div id="statusMessage" class="status-message"></div>
+            
+            <!-- Current Track Info -->
+            <div class="admin-section">
+                <h3>📊 Pista Atual</h3>
+                <div>
+                    <strong>Nome:</strong> <span id="currentTrackName">Carregando...</span><br>
+                    <strong>Data:</strong> <span id="currentTrackDate">Carregando...</span><br>
+                    <strong>Tipo:</strong> <span id="currentTrackType">Carregando...</span>
+                </div>
+                <div id="countdownDisplay" style="margin-top: 10px; font-weight: bold; color: #007bff;">
+                    Carregando countdown...
+                </div>
+            </div>
+
+            <!-- Set Today's Track -->
+            <div class="admin-section">
+                <h3>🎯 Definir Pista de Hoje</h3>
+                
+                <div class="form-group">
+                    <label for="trackType">Tipo de Pista:</label>
+                    <select id="trackType" onchange="admin.handleTrackTypeChange()">
+                        <option value="default">Pista Padrão</option>
+                        <option value="random">Pista Aleatória</option>
+                        <option value="custom">Pista Personalizada</option>
+                    </select>
+                </div>
+                
+                <div class="form-group">
+                    <label for="trackName">Nome da Pista:</label>
+                    <input type="text" id="trackName" placeholder="Nome da pista">
+                </div>
+                
+                <div id="customTrackSection" style="display: none;">
+                    <div class="form-group">
+                        <label for="trackData">Dados da Pista (JSON):</label>
+                        <textarea id="trackData" placeholder='{"trackPoints": [{"x": 0.1, "y": 0.8}, ...]}'></textarea>
+                    </div>
+                    <button class="btn btn-secondary" onclick="admin.importFromGame()">Importar do Jogo</button>
+                </div>
+                
+                <button class="btn" onclick="admin.previewTrack()">Pré-visualizar</button>
+                <button class="btn btn-success" onclick="admin.setTodaysTrack()">Aplicar Pista de Hoje</button>
+                
+                <canvas id="trackPreview" width="400" height="300"></canvas>
+            </div>
+
+            <!-- Schedule Tomorrow's Track -->
+            <div class="admin-section">
+                <h3>⏰ Programar Pista de Amanhã</h3>
+                
+                <div class="form-group">
+                    <label for="tomorrowTrackType">Tipo de Pista:</label>
+                    <select id="tomorrowTrackType">
+                        <option value="default">Pista Padrão</option>
+                        <option value="random">Pista Aleatória</option>
+                        <option value="custom">Pista Personalizada</option>
+                    </select>
+                </div>
+                
+                <div class="form-group">
+                    <label for="tomorrowTrackName">Nome da Pista:</label>
+                    <input type="text" id="tomorrowTrackName" placeholder="Nome da pista">
+                </div>
+                
+                <div class="form-group">
+                    <label for="tomorrowTrackData">Dados da Pista (JSON):</label>
+                    <textarea id="tomorrowTrackData" placeholder='{"trackPoints": [{"x": 0.1, "y": 0.8}, ...]}'></textarea>
+                </div>
+                
+                <button class="btn btn-success" onclick="admin.scheduleTomorrowTrack()">Programar para Amanhã</button>
+            </div>
+
+            <!-- Track History -->
+            <div class="admin-section">
+                <h3>📅 Histórico de Pistas</h3>
+                <div id="trackHistory">
+                    Carregando histórico...
+                </div>
+                <button class="btn btn-danger" onclick="admin.clearTrackHistory()">Limpar Histórico</button>
+            </div>
+
+            <!-- User Submissions -->
+            <div class="admin-section">
+                <h3>📥 Submissões de Usuários</h3>
+                <div id="userSubmissions">
+                    Carregando submissões...
+                </div>
+                <button class="btn" onclick="admin.loadUserSubmissions()">Recarregar Submissões</button>
+            </div>
+
+            <!-- Logout -->
+            <div class="admin-section">
+                <button class="btn btn-secondary" onclick="admin.logout()">Logout</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Scripts -->
+    <script src="scripts/physics.js"></script>
+    <script src="scripts/admin-daily-tracks.js"></script>
+    
+    <script>
+        // Initialize admin panel
+        let admin;
+        
+        document.addEventListener('DOMContentLoaded', function() {
+            console.log('🚀 Inicializando Admin Panel...');
+            admin = new DailyTracksAdmin();
+            
+            // Add some test submissions for testing
+            if (!localStorage.getItem('userTrackSubmissions')) {
+                const testSubmissions = [
+                    {
+                        id: 1,
+                        trackName: "Pista Teste 1",
+                        pilotName: "João Teste",
+                        trackCode: JSON.stringify({
+                            trackPoints: [
+                                {x: 0.1, y: 0.8},
+                                {x: 0.7, y: 0.8},
+                                {x: 0.7, y: 0.6},
+                                {x: 0.5, y: 0.4},
+                                {x: 0.8, y: 0.2},
+                                {x: 0.3, y: 0.2},
+                                {x: 0.1, y: 0.4},
+                                {x: 0.1, y: 0.8}
+                            ]
+                        }),
+                        submittedAt: new Date().toISOString(),
+                        status: 'pending'
+                    },
+                    {
+                        id: 2,
+                        trackName: "Pista Oval",
+                        pilotName: "Maria Silva",
+                        trackCode: JSON.stringify({
+                            trackPoints: [
+                                {x: 0.2, y: 0.5},
+                                {x: 0.4, y: 0.8},
+                                {x: 0.6, y: 0.8},
+                                {x: 0.8, y: 0.5},
+                                {x: 0.6, y: 0.2},
+                                {x: 0.4, y: 0.2},
+                                {x: 0.2, y: 0.5}
+                            ]
+                        }),
+                        submittedAt: new Date(Date.now() - 86400000).toISOString(),
+                        status: 'approved'
+                    }
+                ];
+                
+                localStorage.setItem('userTrackSubmissions', JSON.stringify(testSubmissions));
+                console.log('✅ Test submissions created');
+            }
+        });
+    </script>
+</body>
+</html>
