@@ -170,6 +170,11 @@ class UI {
         this.updateGameModeDisplay();
         this.updateLapCountVisibility(); // Garante visibilidade inicial correta
         
+        // CORREÇÃO: Forçar atualização do display após carregar o gameMode
+        // Isso garante que o melhor tempo apareça corretamente no modo contínuo
+        console.log('🔄 Forçando atualização após carregar gameMode:', this.gameMode);
+        this.updateLapDisplay();
+        
         // Set initial car color and visual style when page loads
         setTimeout(() => {
             if (window.game && window.game.car) {
@@ -233,7 +238,7 @@ class UI {
     updateModeDescription() {
         const mode = this.gameMode;
         const descriptions = {
-            classic: 'Faça uma volta rápida e no menor tempo possível - Não colida nos limites de pista',
+            classic: 'Faça uma volta rápida e no menor tempo possível - Pequena margem de tolerância permitida',
             continuous: 'Sem parar! Bater nos limites da pista reduz sua velocidade - resista o máximo que puder'
         };
         this.elements.modeDescription.textContent = descriptions[mode] || descriptions.classic;
@@ -397,7 +402,7 @@ class UI {
     }
     
     showOverlay(type, lapTime) {
-        console.log('showOverlay called with type:', type);
+        console.log(`📺 UI: showOverlay chamado - type=${type}, lapTime=${lapTime}ms (${TimeUtils.formatTime(lapTime)})`);
         const overlay = document.getElementById('gameOverlay');
         const content = document.getElementById('overlayContent');
         let html = '';
@@ -541,7 +546,9 @@ class UI {
     }
     
     getCurrentBestTime() {
-        return this.gameMode === 'classic' ? this.bestTimeClassic : this.bestTimeContinuous;
+        const bestTime = this.gameMode === 'classic' ? this.bestTimeClassic : this.bestTimeContinuous;
+        console.log(`🔍 getCurrentBestTime() - gameMode: ${this.gameMode}, bestTimeClassic: ${this.bestTimeClassic}, bestTimeContinuous: ${this.bestTimeContinuous}, returning: ${bestTime}`);
+        return bestTime;
     }
     
     setCurrentBestTime(time) {
@@ -573,6 +580,11 @@ class UI {
         
         // Esconde o toast se estiver visível
         this.hideToast();
+        
+        // CORREÇÃO: Forçar atualização do display para garantir que o melhor tempo apareça corretamente
+        console.log('🔄 Forçando atualização do display antes de iniciar - gameMode:', this.gameMode);
+        console.log('🏆 Melhor tempo contínuo atual:', this.bestTimeContinuous);
+        this.updateLapDisplay();
         
         // Configure lap count visibility and reset
         this.updateLapCountVisibility();
@@ -635,6 +647,10 @@ class UI {
     }
     
     updateTimer(milliseconds) {
+        // Log apenas se estivermos em um overlay para evitar spam
+        if (this.overlayVisible) {
+            console.log(`⏰ UI: updateTimer chamado com ${milliseconds}ms (${TimeUtils.formatTime(milliseconds)}) - overlayVisible=${this.overlayVisible}`);
+        }
         this.currentTime = milliseconds;
         this.updateLapDisplay(); // Usa updateLapDisplay em vez de atualizar diretamente
     }
@@ -645,16 +661,23 @@ class UI {
     }
     
     onLapCompleted(lapTime) {
+        console.log(`🎯 UI: onLapCompleted recebido com lapTime=${lapTime}ms (${TimeUtils.formatTime(lapTime)})`);
+        
         this.lapTimes.push(lapTime);
         this.previousTime = lapTime;
         this.lastCompletedLapTime = lapTime; // Armazena o tempo da volta completada
+        
+        console.log(`🎯 UI: Tempos armazenados - lapTimes.length=${this.lapTimes.length}, previousTime=${this.previousTime}, lastCompletedLapTime=${this.lastCompletedLapTime}`);
         
         // Check if it's a new best time for current mode
         const currentBest = this.getCurrentBestTime();
         const isBestLap = !currentBest || lapTime < currentBest;
         
+        console.log(`🎯 UI: Best time check - currentBest=${currentBest}, isBestLap=${isBestLap}`);
+        
         // Update best time for current mode
         if (isBestLap) {
+            console.log(`🏆 UI: Novo recorde! Atualizando de ${currentBest} para ${lapTime}`);
             this.setCurrentBestTime(lapTime);
             this.saveBestTimes();
             
@@ -674,8 +697,18 @@ class UI {
         const gameMode = this.getGameMode();
         if (gameMode === 'classic') {
             if (isBestLap) {
-                // Show full overlay for new record
-                this.showOverlay('bestlap', lapTime);
+                // Determinar tipo de recorde
+                const isFirstTimeEver = !this.lapTimes || this.lapTimes.length === 1;
+                const isPreviousBestBreaten = this.bestTimeClassic && lapTime < this.bestTimeClassic;
+                
+                if (isFirstTimeEver) {
+                    // Primeiro tempo da pista - verde
+                    this.showToast(`🎯 PRIMEIRO TEMPO DA PISTA! ${TimeUtils.formatTimeShort(lapTime)} - Pressione ESPAÇO para tentar bater`, 'success', -1);
+                } else {
+                    // Novo recorde batido - roxo (F1 style)
+                    this.showToast(`🏆 NOVO RECORDE BATIDO! ${TimeUtils.formatTimeShort(lapTime)} - Pressione ESPAÇO para tentar bater novamente`, 'purple', -1);
+                }
+                
                 // Start green blinking animation on timer for record
                 this.startTimerBlinking('green');
                 // Ensure game waits for user input even for records
@@ -685,8 +718,18 @@ class UI {
                     window.game.isRunning = false; // Stop the game completely
                 }
             } else {
-                // Just show toast and let timer blink yellow - don't pause
-                this.showToast('Pressione ESPAÇO para tentar um menor tempo', 'warning', -1); // -1 = permanent
+                // Verificar se é uma melhoria pessoal (mas não recorde absoluto)
+                const sessionTimes = this.lapTimes || [];
+                const previousPersonalBest = sessionTimes.length > 1 ? Math.min(...sessionTimes.slice(0, -1)) : null;
+                
+                if (previousPersonalBest && lapTime < previousPersonalBest) {
+                    // Melhoria pessoal - amarelo com sparkles
+                    this.showToast(`✨ TEMPO MELHORADO! ${TimeUtils.formatTimeShort(lapTime)} - Pressione ESPAÇO para continuar`, 'warning', -1);
+                } else {
+                    // Tempo normal - mensagem padrão
+                    this.showToast('Pressione ESPAÇO para tentar um menor tempo', 'info', -1);
+                }
+                
                 // Start yellow blinking animation on timer
                 this.startTimerBlinking('yellow');
                 // Set flag for game to know it's waiting for continue
@@ -793,23 +836,45 @@ class UI {
             return;
         }
         
-        // Calcula altura baseada no tempo (mais rápido = mais alto)
-        const bestTime = Math.min(...this.lapTimes); // Melhor tempo de todas as voltas
-        const worstDisplayTime = Math.max(...lapTimes); // Pior tempo das últimas 5
-        const timeRange = worstDisplayTime - bestTime;
+        // ALGORITMO MELHORADO: Cálculo proporcional mais inteligente
+        const bestTimeEver = Math.min(...this.lapTimes); // Melhor tempo de todas as voltas
+        const worstInView = Math.max(...lapTimes); // Pior tempo das últimas 5 visíveis
+        const bestInView = Math.min(...lapTimes); // Melhor tempo das últimas 5 visíveis
+        
+        // Parâmetros de altura
+        const minHeight = 6;  // Altura mínima (tempos piores)
+        const maxHeight = 28; // Altura máxima (tempos melhores)
+        const baseHeight = 16; // Altura base para tempos medianos
         
         lapTimes.forEach((time, index) => {
             const bar = document.createElement('div');
             bar.className = 'sparkline-bar';
             
-            // Calcula altura: melhor tempo = altura máxima (26px), outros proporcionais
             let height;
-            if (timeRange === 0 || time === bestTime) {
-                height = 26; // Altura máxima para melhor tempo
+            
+            if (lapTimes.length === 1) {
+                // Se só há 1 tempo, usar altura base
+                height = baseHeight;
             } else {
-                // Quanto melhor o tempo, mais alta a barra
-                const ratio = (worstDisplayTime - time) / timeRange;
-                height = Math.max(4, Math.floor(6 + ratio * 20)); // Min 4px, max 26px
+                // Cálculo proporcional INVERTIDO (tempos menores = barras maiores)
+                const viewRange = worstInView - bestInView;
+                
+                if (viewRange === 0) {
+                    // Todos os tempos iguais
+                    height = baseHeight;
+                } else {
+                    // Quanto MENOR o tempo, MAIOR a barra
+                    const ratio = (worstInView - time) / viewRange;
+                    height = Math.round(minHeight + ratio * (maxHeight - minHeight));
+                    
+                    // Garantir limites
+                    height = Math.max(minHeight, Math.min(maxHeight, height));
+                }
+                
+                // Boost especial para record pessoal absoluto
+                if (time === bestTimeEver) {
+                    height = Math.max(height, maxHeight - 2); // Quase altura máxima para recordes
+                }
             }
             
             bar.style.height = height + 'px';
@@ -820,12 +885,19 @@ class UI {
             if (absoluteIndex === 0 && this.lapTimes.length === 1) {
                 // Primeira volta ever - Verde
                 bar.classList.add('first-lap');
-            } else if (time === bestTime) {
-                // Melhor tempo pessoal - Roxo
+                bar.title = `Primeira volta: ${TimeUtils.formatTimeShort(time)}`;
+            } else if (time === bestTimeEver) {
+                // Melhor tempo pessoal absoluto - Roxo
                 bar.classList.add('personal-best');
+                bar.title = `Recorde pessoal: ${TimeUtils.formatTimeShort(time)}`;
+            } else if (time === bestInView && time !== bestTimeEver) {
+                // Melhor da sessão atual, mas não recorde - Verde claro
+                bar.classList.add('first-lap');
+                bar.title = `Melhor desta sessão: ${TimeUtils.formatTimeShort(time)}`;
             } else {
-                // Tempo mais lento que o melhor - Amarelo
+                // Tempo mais lento - Amarelo
                 bar.classList.add('slower');
+                bar.title = `Volta ${absoluteIndex + 1}: ${TimeUtils.formatTimeShort(time)}`;
             }
             
             this.elements.sparkline.appendChild(bar);
@@ -893,19 +965,33 @@ class UI {
                 shadowColor = 'rgba(220, 53, 69, 0.3)';
                 textColor = '#fff';
                 break;
+            case 'purple':
+            case 'record':
+                backgroundColor = 'rgba(130, 70, 175, 0.95)'; // Purple (F1 style)
+                borderColor = '#8246af';
+                shadowColor = 'rgba(130, 70, 175, 0.3)';
+                textColor = '#fff';
+                break;
             case 'success':
-                backgroundColor = 'rgba(40, 167, 69, 0.95)'; // Green
+            case 'personal':
+                backgroundColor = 'rgba(40, 167, 69, 0.95)'; // Green (primeiro tempo da pista/dia)
                 borderColor = '#28a745';
                 shadowColor = 'rgba(40, 167, 69, 0.3)';
                 textColor = '#fff';
                 break;
             case 'warning':
-            case 'info':
-            default:
-                backgroundColor = 'rgba(255, 193, 7, 0.95)'; // Yellow
+            case 'improvement':
+                backgroundColor = 'rgba(255, 193, 7, 0.95)'; // Yellow (menor que melhor tempo atual)
                 borderColor = '#ffc107';
                 shadowColor = 'rgba(255, 193, 7, 0.3)';
                 textColor = '#333';
+                break;
+            case 'info':
+            default:
+                backgroundColor = 'rgba(108, 117, 125, 0.95)'; // Gray
+                borderColor = '#6c757d';
+                shadowColor = 'rgba(108, 117, 125, 0.3)';
+                textColor = '#fff';
                 break;
         }
         
@@ -1032,11 +1118,13 @@ class UI {
         const savedBestTimeClassic = localStorage.getItem('hotlap_best_time_classic');
         if (savedBestTimeClassic) {
             this.bestTimeClassic = parseInt(savedBestTimeClassic);
+            console.log('📁 Loaded classic best time:', this.bestTimeClassic);
         }
         
         const savedBestTimeContinuous = localStorage.getItem('hotlap_best_time_continuous');
         if (savedBestTimeContinuous) {
             this.bestTimeContinuous = parseInt(savedBestTimeContinuous);
+            console.log('📁 Loaded continuous best time:', this.bestTimeContinuous);
         }
         
         // Migrate old best time to classic mode if exists
@@ -1057,6 +1145,8 @@ class UI {
             }
         }
         
+        // CORREÇÃO: Debug e atualização forçada
+        console.log('🔧 FINAL loadSavedData() - gameMode:', this.gameMode, 'bestTimeClassic:', this.bestTimeClassic, 'bestTimeContinuous:', this.bestTimeContinuous);
         this.updateLapDisplay();
         this.updateSparkline();
     }

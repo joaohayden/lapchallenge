@@ -259,7 +259,7 @@ body {
     border-radius: 15px;
     overflow: hidden;
     box-shadow: 0 4px 12px rgba(44, 62, 80, 0.15);
-    width: 533px;
+    width: 533px; /* Voltando ao original */
     height: 100%;
     max-width: 100%;
     /* alinhamento removido para grid, será feito no flexbox */
@@ -917,15 +917,39 @@ body {
 .sparkline-bar {
     width: 12px;
     border-radius: 2px;
-    transition: all 0.3s ease;
+    transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
     position: relative;
     background: linear-gradient(to top, currentColor, currentColor);
+    cursor: pointer;
+    margin-right: 2px;
+    opacity: 0.9;
 }
 
-.sparkline-bar.first-lap { color: #27ae60; }
-.sparkline-bar.personal-best { color: #8e44ad; }
-.sparkline-bar.slower { color: #f39c12; }
-.sparkline-bar.empty { color: #bdc3c7; }
+.sparkline-bar:hover {
+    opacity: 1;
+    transform: scaleY(1.1);
+    filter: brightness(1.2);
+}
+
+.sparkline-bar.first-lap { 
+    color: #27ae60; 
+    box-shadow: 0 2px 4px rgba(39, 174, 96, 0.3);
+}
+
+.sparkline-bar.personal-best { 
+    color: #8e44ad; 
+    box-shadow: 0 2px 4px rgba(142, 68, 173, 0.3);
+}
+
+.sparkline-bar.slower { 
+    color: #f39c12; 
+    box-shadow: 0 2px 4px rgba(243, 156, 18, 0.3);
+}
+
+.sparkline-bar.empty { 
+    color: #bdc3c7; 
+    opacity: 0.5;
+}
 
 /* Animações */
 @keyframes fadeIn {
@@ -1030,8 +1054,8 @@ body {
     }
 
     .game-screen {
-    width: 533px;
-    height: 440px;
+    width: 533px; /* Voltando ao original */
+    height: 440px; /* Voltando ao original */
     min-width: 320px;
     max-width: 533px;
     flex: 0 0 533px;
@@ -1046,8 +1070,8 @@ body {
     }
 
     #gameCanvas {
-        width: 533px !important;
-        height: 400px !important;
+        width: 533px !important; /* Voltando ao original */
+        height: 400px !important; /* Voltando ao original */
         max-width: 533px;
         max-height: 400px;
     }

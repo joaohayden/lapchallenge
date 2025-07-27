@@ -161,13 +161,12 @@ class TrackGenerator {
         
         this.ctx = this.canvas.getContext('2d');
         
-        // Set canvas size to match reference
-        const aspectRatio = this.GAME_BASE_WIDTH / this.GAME_BASE_HEIGHT;
-        this.canvas.width = 600;
-        this.canvas.height = this.canvas.width / aspectRatio;
+        // Set canvas size to match the main game EXACTLY
+        // Main game uses width="400" height="300" in HTML
+        this.canvas.width = 400;
+        this.canvas.height = 300;
         
-        this.GAME_OFFSET_Y = 0.12;
-        this.visibleHeight = this.canvas.height * (1 - this.GAME_OFFSET_Y);
+        // Removido GAME_OFFSET_Y - agora pode desenhar em todo o canvas
         this.canvas.style.cursor = 'crosshair';
     }
 
@@ -258,12 +257,10 @@ class TrackGenerator {
         const x = (event.clientX - rect.left) * scaleX;
         const y = (event.clientY - rect.top) * scaleY;
         
-        const gameOffsetHeight = this.canvas.height * this.GAME_OFFSET_Y;
-        const maxY = this.canvas.height - gameOffsetHeight;
-        
+        // Agora pode desenhar em todo o canvas
         return {
             x: Math.max(0, Math.min(this.canvas.width, x)),
-            y: Math.max(0, Math.min(maxY, y))
+            y: Math.max(0, Math.min(this.canvas.height, y))
         };
     }
 
@@ -292,22 +289,11 @@ class TrackGenerator {
         this.updateCodeOutput();
         this.renderGridWithOffset();
         
-        // Draw starting point
-        const gameOffsetHeight = this.canvas.height * this.GAME_OFFSET_Y;
-        const maxY = this.canvas.height - gameOffsetHeight;
-        
-        this.ctx.save();
-        this.ctx.beginPath();
-        this.ctx.rect(0, 0, this.canvas.width, maxY);
-        this.ctx.clip();
-        
+        // Draw starting point - agora sem clip
         this.ctx.fillStyle = '#00ff00';
         this.ctx.beginPath();
         this.ctx.arc(coords.x, coords.y, 4, 0, 2 * Math.PI);
         this.ctx.fill();
-        
-        this.ctx.restore();
-        this.drawGameViewIndicator(maxY);
     }
 
     handleDrawMove(event) {
@@ -448,14 +434,7 @@ class TrackGenerator {
         
         if (this.drawingPoints.length < 2) return;
         
-        const gameOffsetHeight = this.canvas.height * this.GAME_OFFSET_Y;
-        const maxY = this.canvas.height - gameOffsetHeight;
-        
-        this.ctx.save();
-        this.ctx.beginPath();
-        this.ctx.rect(0, 0, this.canvas.width, maxY);
-        this.ctx.clip();
-        
+        // Sem clip - pode desenhar em todo o canvas
         this.ctx.strokeStyle = '#00ff00';
         this.ctx.lineWidth = 3;
         this.ctx.lineCap = 'round';
@@ -503,38 +482,20 @@ class TrackGenerator {
                 this.ctx.setLineDash([]);
             }
         }
-        
-        this.ctx.restore();
-        this.drawGameViewIndicator(maxY);
     }
 
     renderGridWithOffset() {
         this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
         
-        const gameOffsetHeight = this.canvas.height * this.GAME_OFFSET_Y;
-        const visibleHeight = this.canvas.height - gameOffsetHeight;
-        
-        // Draw grayed out area
-        this.ctx.fillStyle = 'rgba(200, 200, 200, 0.3)';
-        this.ctx.fillRect(0, visibleHeight, this.canvas.width, gameOffsetHeight);
-        
-        // Draw grid
+        // Draw grid - simples, sem área oculta
         this.ctx.strokeStyle = '#e0e0e0';
         this.ctx.lineWidth = 1;
         
         // Vertical lines
         for (let i = 0; i <= 10; i++) {
             const x = i / 10 * this.canvas.width;
-            this.ctx.globalAlpha = 1;
             this.ctx.beginPath();
             this.ctx.moveTo(x, 0);
-            this.ctx.lineTo(x, visibleHeight);
-            this.ctx.stroke();
-            
-            // Faded lines in hidden area
-            this.ctx.globalAlpha = 0.3;
-            this.ctx.beginPath();
-            this.ctx.moveTo(x, visibleHeight);
             this.ctx.lineTo(x, this.canvas.height);
             this.ctx.stroke();
         }
@@ -542,38 +503,25 @@ class TrackGenerator {
         // Horizontal lines
         for (let i = 0; i <= 10; i++) {
             const y = i / 10 * this.canvas.height;
-            this.ctx.globalAlpha = y > visibleHeight ? 0.3 : 1;
             this.ctx.beginPath();
             this.ctx.moveTo(0, y);
             this.ctx.lineTo(this.canvas.width, y);
             this.ctx.stroke();
         }
         
-        this.ctx.globalAlpha = 1;
-        
-        // Draw game area border
-        this.ctx.strokeStyle = '#007ACC';
-        this.ctx.lineWidth = 2;
-        this.ctx.setLineDash([5, 5]);
-        this.ctx.beginPath();
-        this.ctx.moveTo(0, visibleHeight);
-        this.ctx.lineTo(this.canvas.width, visibleHeight);
-        this.ctx.stroke();
-        this.ctx.setLineDash([]);
-        
         // Draw center point
+        const centerX = this.canvas.width / 2;
         const centerY = this.canvas.height / 2;
         this.ctx.fillStyle = '#ff0000';
         this.ctx.beginPath();
-        this.ctx.arc(this.canvas.width / 2, centerY, 3, 0, 2 * Math.PI);
+        this.ctx.arc(centerX, centerY, 3, 0, 2 * Math.PI);
         this.ctx.fill();
         
         // Labels
         this.ctx.fillStyle = '#666';
         this.ctx.font = '12px IBM Plex Mono';
-        this.ctx.fillText('🎮 Game View', 5, 15);
-        this.ctx.fillText('Hidden Area', 5, visibleHeight + 15);
-        this.ctx.fillText('Center', this.canvas.width / 2 + 10, centerY - 10);
+        this.ctx.fillText('🎮 Track Generator', 5, 15);
+        this.ctx.fillText('Center', centerX + 10, centerY - 10);
     }
 
     renderTrack() {
@@ -592,9 +540,6 @@ class TrackGenerator {
         const canvasCenterX = this.canvas.width / 2;
         const canvasCenterY = this.canvas.height / 2;
         
-        const gameOffsetHeight = this.canvas.height * this.GAME_OFFSET_Y;
-        const visibleHeight = this.canvas.height - gameOffsetHeight;
-        
         const gameAreaX = canvasCenterX - gameWidth / 2;
         const gameAreaY = canvasCenterY - gameHeight / 2;
         
@@ -605,17 +550,9 @@ class TrackGenerator {
             angle: point.angle
         }));
         
-        // Clip to visible area
-        this.ctx.save();
-        this.ctx.beginPath();
-        this.ctx.rect(0, 0, this.canvas.width, visibleHeight);
-        this.ctx.clip();
-        
+        // Sem clip - renderiza em todo o canvas
         const trackWidth = this.getGameTrackWidth();
         this.renderGameStyleTrack(canvasPoints, trackWidth, scale);
-        
-        this.ctx.restore();
-        this.drawGameViewIndicator(visibleHeight);
     }
 
     renderGameStyleTrack(canvasPoints, trackWidth, scale) {

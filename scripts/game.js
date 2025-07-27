@@ -4,6 +4,10 @@ class Game {
         this.canvas = document.getElementById('gameCanvas');
         this.ctx = this.canvas.getContext('2d');
         
+        // Otimizações de performance para suavidade
+        this.ctx.imageSmoothingEnabled = true;
+        this.ctx.imageSmoothingQuality = 'high';
+        
         // Game objects
         this.track = null;
         this.car = null;
@@ -20,10 +24,13 @@ class Game {
         this.mode = 'classic'; // Current game mode
         this.debug = false;
         
-        // Timing
-        this.lastTime = 0;
-        this.deltaTime = 0;
+        // Timing with performance optimizations
+        this.lastTime = performance.now();
+        this.deltaTime = 16.67; // Start with 60 FPS target
         this.gameStartTime = 0;
+        this.frameCount = 0;
+        this.lastFPSTime = performance.now(); // Initialize with current time
+        this.currentFPS = 60; // Initialize with target FPS
         
         // Input handling
         this.keys = {};
@@ -343,6 +350,9 @@ class Game {
                 
                 // Add small delay before restarting to ensure car stays at rest
                 setTimeout(() => {
+                    // Clear justReset flag manually since we're ready to continue
+                    console.log('Game: Limpando justReset flag manualmente - usuário pressionou espaço');
+                    this.car.justReset = false;
                     this.isRunning = true; // Reiniciar o jogo após delay
                     console.log(`Game: Jogo reiniciado após delay - Speed: ${this.car.speed}`);
                 }, 100);
@@ -482,9 +492,13 @@ class Game {
             return;
         }
         
-        // Calculate delta time
+        // Calculate delta time with better frame limiting
         this.deltaTime = currentTime - this.lastTime;
         this.lastTime = currentTime;
+        
+        // Limit deltaTime to prevent stuttering and ensure smooth gameplay
+        // Cap at 33ms (equivalent to 30 FPS minimum) to prevent big jumps
+        this.deltaTime = Math.min(this.deltaTime, 33);
 
         // Só atualizar se não estiver pausado
         if (!this.isPaused && this.isRunning) {
@@ -568,10 +582,35 @@ class Game {
             this.car.render();
         }
         
+        // Always show FPS counter for performance monitoring
+        this.renderFPSCounter();
+        
         // Debug rendering
         if (this.debug) {
             this.renderDebug();
         }
+    }
+    
+    renderFPSCounter() {
+        // FPS counter simples e sempre visível
+        const instantFPS = Math.round(1000 / this.deltaTime);
+        
+        // Background para legibilidade
+        this.ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
+        this.ctx.fillRect(this.canvas.width - 100, 5, 95, 25);
+        
+        // Color coding: Green (60+), Yellow (45-59), Red (<45)
+        let color = '#00FF00'; // Green
+        if (instantFPS < 60) color = '#FFFF00'; // Yellow  
+        if (instantFPS < 45) color = '#FF0000'; // Red
+        
+        this.ctx.fillStyle = color;
+        this.ctx.font = 'bold 14px Arial';
+        this.ctx.fillText(`FPS: ${instantFPS}`, this.canvas.width - 95, 20);
+        
+        // Performance indicator
+        const performance = instantFPS >= 60 ? '🟢' : instantFPS >= 45 ? '🟡' : '🔴';
+        this.ctx.fillText(performance, this.canvas.width - 30, 20);
     }
     
     renderDebug() {

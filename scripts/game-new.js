@@ -11,6 +11,10 @@ class Game {
         this.lastFrameTime = performance.now();
         this.frameCount = 0;
         
+        // Delta Time optimization 
+        this.lastTime = performance.now();
+        this.deltaTime = 16.67; // Start with 60 FPS target
+        
         // Variáveis de controle do jogo como no game.js original
         this.isRunning = false;
         this.isPaused = false;
@@ -76,6 +80,16 @@ class Game {
         // Inicializar controle do carro
         this.carController = new CarController(scale);
         
+        // Inicializar cor do carro (Ferrari por padrão)
+        this.carColor = '#E30907'; // Vermelho Ferrari
+        this.carSecondaryColor = '#FFD700'; // Amarelo Ferrari
+        this.carTeam = 'ferrari';
+        
+        // Compatibilidade com UI - criar referência this.car para updateTeamColor
+        this.car = {
+            updateTeamColor: (teamValue) => this.updateTeamColor(teamValue)
+        };
+        
         // Game area offset (12% do canvas reservado para UI)
         const gameAreaOffset = 0.12 * this.canvas.height;
         
@@ -85,6 +99,64 @@ class Game {
         // Se não há pista personalizada, gerar pista padrão
         if (!this.hasCustomTrack) {
             this.generateDefaultTrack();
+        }
+        
+        // Carregar melhor tempo salvo no localStorage
+        this.loadBestTime();
+        
+        // Carregar time selecionado se disponível
+        this.loadSelectedTeam();
+        
+        // Sincronizar com UI se já há time selecionado
+        this.syncWithUI();
+    }
+
+    // Carregar melhor tempo do localStorage
+    loadBestTime() {
+        const savedBestTime = localStorage.getItem('hotlap_best_time_classic');
+        if (savedBestTime) {
+            this.bestLapTime = parseInt(savedBestTime);
+            console.log('🏆 Melhor tempo carregado do localStorage:', this.formatTime(this.bestLapTime));
+            
+            // Sincronizar com UI se disponível
+            if (this.ui && typeof this.ui.setCurrentBestTime === 'function') {
+                this.ui.setCurrentBestTime(this.bestLapTime);
+                console.log('🔄 Melhor tempo sincronizado com UI');
+                
+                // Atualizar display do melhor tempo usando a formatação correta do UI
+                if (this.ui.elements && this.ui.elements.bestLapSide && window.TimeUtils) {
+                    this.ui.elements.bestLapSide.textContent = TimeUtils.formatTimeShort(this.bestLapTime);
+                    console.log('📺 Display do melhor tempo atualizado na UI');
+                }
+            }
+        }
+    }
+
+    // Salvar melhor tempo no localStorage
+    saveBestTime() {
+        if (this.bestLapTime) {
+            localStorage.setItem('hotlap_best_time_classic', this.bestLapTime.toString());
+            console.log('💾 Melhor tempo salvo no localStorage:', this.formatTime(this.bestLapTime));
+        }
+    }
+    
+    // Carregar time selecionado do localStorage
+    loadSelectedTeam() {
+        const savedTeam = localStorage.getItem('hotlap_team');
+        if (savedTeam) {
+            this.updateTeamColor(savedTeam);
+            console.log('🏎️ Time carregado do localStorage:', savedTeam);
+        }
+    }
+    
+    // Sincronizar com UI se necessário
+    syncWithUI() {
+        if (this.ui && this.ui.elements && this.ui.elements.teamSelect) {
+            const currentSelection = this.ui.elements.teamSelect.value;
+            if (currentSelection && currentSelection !== this.carTeam) {
+                this.updateTeamColor(currentSelection);
+                console.log('🔄 Sincronizado com seleção da UI:', currentSelection);
+            }
         }
     }
 
@@ -149,8 +221,8 @@ class Game {
         // Posicionar carro na linha de largada
         this.carController.setPosition(this.startLine.x, this.startLine.y, this.startLine.angle);
         
-        // Reset dos recordes ao carregar nova pista
-        this.resetTrackRecords();
+        // Reset dos recordes somente se realmente mudou de pista personalizada
+        this.resetTrackRecordsIfTrackChanged(true);
     }
 
     generateDefaultTrack() {
@@ -188,8 +260,8 @@ class Game {
         this.generateTrackBounds();
         this.carController.setPosition(this.startLine.x, this.startLine.y, this.startLine.angle);
         
-        // Reset dos recordes ao gerar nova pista padrão
-        this.resetTrackRecords();
+        // Reset dos recordes somente se realmente mudou de pista padrão (primeira vez)
+        this.resetTrackRecordsIfTrackChanged(false);
     }
 
     generateTrackBounds() {
@@ -366,15 +438,58 @@ class Game {
         }
     }
 
+    // Reset dos recordes somente se a pista realmente mudou
+    resetTrackRecordsIfTrackChanged(isCustomTrack) {
+        // Verificar se já temos uma "assinatura" da pista atual salva
+        const currentTrackSignature = this.generateTrackSignature();
+        const savedTrackSignature = localStorage.getItem('current_track_signature');
+        
+        if (savedTrackSignature !== currentTrackSignature) {
+            console.log('🏁 Pista mudou - resetando recordes');
+            console.log('  - Assinatura anterior:', savedTrackSignature);
+            console.log('  - Assinatura atual:', currentTrackSignature);
+            
+            // Salvar nova assinatura da pista
+            localStorage.setItem('current_track_signature', currentTrackSignature);
+            
+            // Resetar recordes apenas quando pista mudou de verdade
+            this.resetTrackRecords();
+        } else {
+            console.log('🔄 Mesma pista detectada - mantendo recordes');
+            
+            // Carregar melhor tempo existente se estiver na mesma pista
+            this.loadBestTime();
+        }
+    }
+
+    // Gerar assinatura única da pista baseada nos pontos
+    generateTrackSignature() {
+        if (!this.trackPoints || this.trackPoints.length === 0) {
+            return 'no-track';
+        }
+        
+        // Criar hash simples baseado nos pontos da pista
+        let signature = '';
+        for (let i = 0; i < Math.min(this.trackPoints.length, 10); i++) {
+            const point = this.trackPoints[i];
+            signature += `${Math.round(point.x)},${Math.round(point.y)};`;
+        }
+        
+        // Adicionar informação se é pista personalizada ou padrão
+        signature += this.hasCustomTrack ? '-custom' : '-default';
+        
+        return signature;
+    }
+
     update(deltaTime) {
         if (this.gamePaused || !this.isRunning) return;
         
         try {
             this.carController.update();
             this.updateCarHistory(); // Atualizar histórico de posições
+            this.updateTimer(); // MOVER updateTimer ANTES de checkLapCompletion
             this.checkCollision();
             this.checkLapCompletion();
-            this.updateTimer();
         } catch (error) {
             this.handleGameError(error);
         }
@@ -382,9 +497,18 @@ class Game {
 
     // Atualizar timer na UI
     updateTimer() {
+        const gameMode = this.ui?.getGameMode ? this.ui.getGameMode() : 'classic';
+        
         if (this.isRunning && this.lapStartTime && this.ui) {
-            const currentTime = Date.now() - this.lapStartTime;
-            this.ui.updateTimer(currentTime);
+            // No modo contínuo, sempre atualizar timer mesmo se volta foi completada
+            // No modo clássico, só atualizar se volta não foi completada
+            if (gameMode === 'continuous' || !this.hasCompletedLap) {
+                const currentTime = Date.now() - this.lapStartTime;
+                this.ui.updateTimer(currentTime);
+            }
+        } else if (this.hasCompletedLap && this.isRunning && gameMode === 'classic') {
+            // Log quando timer para devido a volta completada (só no modo clássico)
+            console.log(`⏹️ Timer parado - volta completada no modo clássico (hasCompletedLap=${this.hasCompletedLap})`);
         }
     }
 
@@ -619,6 +743,18 @@ class Game {
         this.lastValidDirectionCheck = null;
         this.suspiciousDirectionChanges = 0;
         
+        // Reset do contador de voltas no modo contínuo
+        if (this.ui && this.ui.getGameMode && this.ui.getGameMode() === 'continuous') {
+            console.log('🔄 Resetando contador de voltas do modo contínuo');
+            this.ui.lapCount = 0;
+            if (this.ui.elements.lapCount) {
+                this.ui.elements.lapCount.textContent = '0';
+            }
+            if (this.ui.elements.lapCountSide) {
+                this.ui.elements.lapCountSide.textContent = '0';
+            }
+        }
+        
         // Esconder toast se estiver visível
         if (this.ui && typeof this.ui.hideToast === 'function') {
             this.ui.hideToast();
@@ -679,11 +815,17 @@ class Game {
         this.isWaitingForContinue = false;
         this.gameJustStarted = Date.now();
         
+        // IMPORTANTE: Garantir que justReset seja false ao iniciar
+        console.log('🚗 Garantindo que justReset seja false ao iniciar jogo');
+        this.carController.justReset = false;
+        this.carController.justResetClearedManually = true;
+        
         console.log('🚗 Car position after start:', {
             x: this.carController.position.x.toFixed(2),
             y: this.carController.position.y.toFixed(2),
             angle: this.carController.position.angle.toFixed(2),
-            speed: this.carController.speed.toFixed(2)
+            speed: this.carController.speed.toFixed(2),
+            justReset: this.carController.justReset
         });
         
         // Notificar UI
@@ -695,6 +837,28 @@ class Game {
     // Callback para compatibilidade com UI
     start() {
         this.startGame();
+    }
+    
+    // Update car color based on team selection
+    updateTeamColor(teamValue) {
+        const teamColors = {
+            ferrari: { primary: '#E30907', secondary: '#FFD700' },        // Vermelho e amarelo
+            redbull: { primary: '#1E41FF', secondary: '#FFD700' },        // Azul e amarelo
+            mercedes: { primary: '#000000', secondary: '#00D2BE' },       // Preto com azul ciano
+            mclaren: { primary: '#FF8700', secondary: '#000000' },        // Laranja com preto
+            astonmartin: { primary: '#00FF80', secondary: '#FFFFFF' },    // Verde cristal com branco
+            alpine: { primary: '#FF69B4', secondary: '#0090FF' },         // Rosa com azul
+            williams: { primary: '#004080', secondary: '#FFFFFF' },       // Azul oceano com branco
+            rb: { primary: '#4169E1', secondary: '#FFFFFF' },             // Azul royal com branco
+            sauber: { primary: '#228B22', secondary: '#000000' },         // Verde verdão com preto (Stake)
+            haas: { primary: '#000000', secondary: '#FFFFFF' }            // Preto com branco
+        };
+        
+        const teamData = teamColors[teamValue] || teamColors.ferrari;
+        this.carColor = teamData.primary;
+        this.carSecondaryColor = teamData.secondary;
+        this.carTeam = teamValue || 'ferrari';
+        console.log(`🏎️ Car colors updated - Primary: ${this.carColor}, Secondary: ${this.carSecondaryColor} for team ${this.carTeam}`);
     }
     
     // Parar modo contínuo e mostrar estatísticas (como no game.js original)
@@ -757,9 +921,10 @@ class Game {
                 this.handleCarCrash();
             }
         } else {
-            // Modo clássico: sem tolerância
-            if (!this.isOnTrack(carX, carY, 0)) {
-                console.log('💥 Collision detected! Car position:', carX.toFixed(2), carY.toFixed(2), '(classic mode)');
+            // Modo clássico: tolerância pequena (3 pixels) para permitir sair um pouquinho
+            const tolerance = 3; // Pequena margem de erro como no jogoref.js
+            if (!this.isOnTrack(carX, carY, tolerance)) {
+                console.log('💥 Collision detected! Car position:', carX.toFixed(2), carY.toFixed(2), '(classic mode - small tolerance)');
                 this.handleCarCrash();
             }
         }
@@ -862,85 +1027,40 @@ class Game {
         const carX = this.carController.position.x;
         const carY = this.carController.position.y;
         
-        // DETECÇÃO APRIMORADA DA LINHA DE LARGADA
-        // Em vez de usar apenas a distância do centro, verificar proximidade com a linha inteira
-        const startPoint = this.trackPoints[0];
-        const nextPoint = this.trackPoints[1];
-        
-        // Calcular linha de largada (mesma lógica do desenho)
-        const dx = nextPoint.x - startPoint.x;
-        const dy = nextPoint.y - startPoint.y;
-        const length = Math.sqrt(dx * dx + dy * dy);
-        
-        let perpX = -dy / length;
-        let perpY = dx / length;
-        
-        // Aplicar ajuste de curvatura (mesma lógica do desenho)
-        const curveInfo = this.detectCurveDirection(0);
-        
-        if (curveInfo.isCurve && Math.abs(curveInfo.angle) > 8) {
-            let adjustmentAngle;
-            
-            if (curveInfo.direction === 'left') {
-                adjustmentAngle = Math.abs(curveInfo.angle) * 0.4;
-            } else {
-                adjustmentAngle = -Math.abs(curveInfo.angle) * 0.4;
-            }
-            
-            const cos_adj = Math.cos(adjustmentAngle);
-            const sin_adj = Math.sin(adjustmentAngle);
-            const newPerpX = perpX * cos_adj - perpY * sin_adj;
-            const newPerpY = perpX * sin_adj + perpY * cos_adj;
-            perpX = newPerpX;
-            perpY = newPerpY;
-        }
-        
-        const halfWidth = this.trackWidth / 2;
-        const extension = 8;
-        const extendedHalfWidth = halfWidth + extension;
-        
-        // Calcular distância do carro para a linha de largada
-        const lineStart = {
-            x: startPoint.x + perpX * extendedHalfWidth,
-            y: startPoint.y + perpY * extendedHalfWidth
-        };
-        const lineEnd = {
-            x: startPoint.x - perpX * extendedHalfWidth,
-            y: startPoint.y - perpY * extendedHalfWidth
-        };
-        
-        const distanceToStartLine = this.distanceToLineSegment(carX, carY, lineStart.x, lineStart.y, lineEnd.x, lineEnd.y);
-        
-        // Área de detecção mais ampla e sensível
-        if (distanceToStartLine < 25 && this.lapStartTime && Date.now() - this.lapStartTime > 5000) {
-            console.log(`🏁 Car near start line! Distance: ${distanceToStartLine.toFixed(1)}px`);
-            
-            // VALIDAÇÃO ANTI-CHEAT: Verificar direção do carro
-            const isDirectionCorrect = this.isCarDirectionCorrect(carX, carY, this.carController.position.angle);
-            
-            if (!isDirectionCorrect) {
-                console.log('🚨 CHEAT DETECTED: Car going wrong direction!');
-                this.handleCheatDetection('wrong-direction');
-                return;
-            }
-            
-            // VALIDAÇÃO DE PADRÃO DE CRUZAMENTO (como no car.js original)
+        // DETECÇÃO PRECISA: Só completar volta quando carro ATRAVESSAR a linha
+        if (this.lapStartTime && Date.now() - this.lapStartTime > 5000) {
+            // VALIDAÇÃO DE PADRÃO DE CRUZAMENTO (verificar se realmente cruzou)
             const crossingInfo = this.checkStartLineCrossing(carX, carY);
-            if (crossingInfo && this.lapCount > 0) {
-                const currentPattern = `${crossingInfo.fromSide}->${crossingInfo.toSide}`;
+            
+            if (crossingInfo && crossingInfo.crossed) {
+                console.log(`🏁 Car CROSSED start line! From ${crossingInfo.fromSide} to ${crossingInfo.toSide}`);
                 
-                if (!this.establishedCrossingPattern) {
-                    this.establishedCrossingPattern = currentPattern;
-                    console.log(`📝 Established crossing pattern: ${this.establishedCrossingPattern}`);
-                } else if (currentPattern !== this.establishedCrossingPattern) {
-                    console.log('🚨 WRONG DIRECTION: Different crossing pattern detected!');
-                    console.log(`Expected: ${this.establishedCrossingPattern}, Got: ${currentPattern}`);
+                // VALIDAÇÃO ANTI-CHEAT: Verificar direção do carro
+                const isDirectionCorrect = this.isCarDirectionCorrect(carX, carY, this.carController.position.angle);
+                
+                if (!isDirectionCorrect) {
+                    console.log('🚨 CHEAT DETECTED: Car going wrong direction!');
                     this.handleCheatDetection('wrong-direction');
                     return;
                 }
+                
+                // Validar padrão de cruzamento para detecção de direção errada
+                if (this.lapCount > 0) {
+                    const currentPattern = `${crossingInfo.fromSide}->${crossingInfo.toSide}`;
+                    
+                    if (!this.establishedCrossingPattern) {
+                        this.establishedCrossingPattern = currentPattern;
+                        console.log(`📝 Established crossing pattern: ${this.establishedCrossingPattern}`);
+                    } else if (currentPattern !== this.establishedCrossingPattern) {
+                        console.log('🚨 WRONG DIRECTION: Different crossing pattern detected!');
+                        console.log(`Expected: ${this.establishedCrossingPattern}, Got: ${currentPattern}`);
+                        this.handleCheatDetection('wrong-direction');
+                        return;
+                    }
+                }
+                
+                this.completeLap();
             }
-            
-            this.completeLap();
         } else if (!this.lapStartTime) {
             this.startLap();
         }
@@ -1219,49 +1339,46 @@ class Game {
             y: startPoint.y - perpY * extendedHalfWidth
         };
         
-        // DETECÇÃO APRIMORADA: Verificar múltiplos pontos ao redor da posição do carro
+        // DETECÇÃO PRECISA: Verificar se realmente atravessou a linha
         let crossed = false;
-        const carRadius = 10; // Raio do carro para detecção mais sensível
         
-        // Verificar cruzamento em múltiplos pontos ao redor do carro
-        const testPoints = [
-            { x: carX, y: carY }, // Centro do carro
-            { x: carX - carRadius, y: carY }, // Esquerda
-            { x: carX + carRadius, y: carY }, // Direita
-            { x: carX, y: carY - carRadius }, // Cima
-            { x: carX, y: carY + carRadius }, // Baixo
-        ];
-        
-        for (const testPoint of testPoints) {
-            if (this.lineIntersection(
-                this.lastCarPosition.x, this.lastCarPosition.y,
-                testPoint.x, testPoint.y,
-                lineStart.x, lineStart.y,
-                lineEnd.x, lineEnd.y
-            )) {
-                crossed = true;
-                break;
-            }
+        // Método principal: Verificar interseção do movimento do carro com a linha
+        if (this.lineIntersection(
+            this.lastCarPosition.x, this.lastCarPosition.y,
+            carX, carY,
+            lineStart.x, lineStart.y,
+            lineEnd.x, lineEnd.y
+        )) {
+            crossed = true;
+            console.log('🎯 Line crossing detected by movement intersection!');
         }
         
-        // Também verificar distância do carro à linha (método alternativo mais sensível)
+        // Método alternativo: Verificar se houve mudança de lado da linha
         if (!crossed) {
-            const distanceToLine = this.distanceToLineSegment(carX, carY, lineStart.x, lineStart.y, lineEnd.x, lineEnd.y);
-            const wasOnLine = this.distanceToLineSegment(this.lastCarPosition.x, this.lastCarPosition.y, lineStart.x, lineStart.y, lineEnd.x, lineEnd.y);
+            const previousSide = this.getLineSide(this.lastCarPosition.x, this.lastCarPosition.y, lineStart, lineEnd);
+            const currentSide = this.getLineSide(carX, carY, lineStart, lineEnd);
             
-            // Se carro está próximo da linha e estava longe antes, considerar cruzamento
-            if (distanceToLine < 15 && wasOnLine > 15) {
-                console.log('🎯 Line crossing detected by proximity method');
-                crossed = true;
+            // Se mudou de lado E está próximo da linha, considera cruzamento
+            if (previousSide !== currentSide) {
+                const distanceToLine = this.distanceToLineSegment(carX, carY, lineStart.x, lineStart.y, lineEnd.x, lineEnd.y);
+                
+                if (distanceToLine < 15) { // Deve estar próximo da linha para ser válido
+                    crossed = true;
+                    console.log(`🎯 Line crossing detected by side change! ${previousSide} → ${currentSide}`);
+                }
             }
         }
         
+        // Atualizar posição anterior para próxima verificação
+        const previousPosition = { x: this.lastCarPosition.x, y: this.lastCarPosition.y };
         this.lastCarPosition = { x: carX, y: carY };
         
         if (crossed) {
-            // Determinar de que lado para que lado cruzou
-            const fromSide = this.getLineSide(this.lastCarPosition.x, this.lastCarPosition.y, lineStart, lineEnd);
+            // Determinar de que lado para que lado cruzou baseado nas posições real
+            const fromSide = this.getLineSide(previousPosition.x, previousPosition.y, lineStart, lineEnd);
             const toSide = this.getLineSide(carX, carY, lineStart, lineEnd);
+            
+            console.log(`🏁 CRUZAMENTO CONFIRMADO: ${fromSide} → ${toSide}`);
             
             return {
                 crossed: true,
@@ -1313,15 +1430,27 @@ class Game {
 
     startLap() {
         this.lapStartTime = Date.now();
+        this.hasCompletedLap = false; // Reset flag para permitir timer e detecção de completamento
         console.log('🏁 Lap started!');
     }
 
     completeLap() {
         const lapTime = Date.now() - this.lapStartTime;
+        
+        // IMPORTANTE: Marcar que a volta foi completada IMEDIATAMENTE para parar o timer
+        this.hasCompletedLap = true;
+        
         this.lapTimes.push(lapTime);
         this.lapCount++; // Incrementar contador de voltas para anti-cheat
         
         console.log('✅ Lap completed in:', this.formatTime(lapTime), `(Lap #${this.lapCount})`);
+        console.log(`🕒 Tempo detalhado - Date.now()=${Date.now()}, lapStartTime=${this.lapStartTime}, lapTime=${lapTime}ms`);
+        
+        // Forçar atualização final do timer na UI com o tempo exato da volta
+        if (this.ui && this.ui.updateTimer) {
+            console.log(`🕒 Forçando atualização final do timer para ${lapTime}ms`);
+            this.ui.updateTimer(lapTime);
+        }
         
         // Verificar se é um novo recorde
         const isNewRecord = !this.bestLapTime || lapTime < this.bestLapTime;
@@ -1330,9 +1459,10 @@ class Game {
             this.bestLapTime = lapTime;
             console.log('🏆 NEW RECORD!', this.formatTime(lapTime));
             
-            // Mostrar toast de novo recorde
-            if (this.ui && typeof this.ui.showToast === 'function') {
-                this.ui.showToast(`🏆 NOVO RECORDE! ${this.formatTime(lapTime)}`, 'success', 4000);
+            // Salvar novo recorde no localStorage apenas no modo clássico
+            const gameMode = this.ui?.getGameMode ? this.ui.getGameMode() : 'classic';
+            if (gameMode === 'classic') {
+                this.saveBestTime();
             }
         }
         
@@ -1352,29 +1482,52 @@ class Game {
         const gameMode = this.ui?.getGameMode ? this.ui.getGameMode() : 'classic';
         
         if (gameMode === 'classic') {
-            // Modo clássico: retornar carro à posição inicial e pausar
-            console.log('🏁 Classic mode - returning car to start and pausing for user input');
-            this.carController.setPosition(this.startLine.x, this.startLine.y, this.startLine.angle);
-            this.pauseForLapComplete();
+            // Modo clássico: pausar e aguardar input do usuário (SEM resetar posição)
+            console.log('🏁 Classic mode - pausing for user input (car stays at finish line)');
+            this.pauseForLapComplete(isNewRecord);
         } else {
             // Modo contínuo: continuar automaticamente
             console.log('🔄 Continuous mode - starting next lap automatically');
             this.lapStartTime = Date.now(); // Start next lap
+            this.hasCompletedLap = false; // IMPORTANTE: Reset flag para permitir timer continuar
+            console.log('⏰ Timer resetado para modo contínuo - nova volta iniciada');
         }
-        
-        this.hasCompletedLap = true;
     }
     
     // Pausar jogo após completar volta (modo clássico)
-    pauseForLapComplete() {
+    pauseForLapComplete(isNewRecord = false) {
         console.log('Game: pauseForLapComplete() - Pausando o jogo para aguardar espaço');
         this.isWaitingForContinue = true;
         this.isPaused = true;
         this.isRunning = false; // Garantir que o jogo pare completamente
         
-        // Mostrar toast para continuar (como no jogo original)
-        if (this.ui && typeof this.ui.showToast === 'function') {
+        // Só mostrar toast genérico se NÃO for novo recorde (senão UI já mostrou o toast de recorde)
+        if (!isNewRecord && this.ui && typeof this.ui.showToast === 'function') {
             this.ui.showToast('Pressione ESPAÇO para tentar um menor tempo', 'warning', -1); // -1 = permanent
+        }
+    }
+
+    // Continuar após completar volta (modo clássico)
+    continueFromLapComplete() {
+        console.log('Game: continueFromLapComplete() - Continuando após completar volta');
+        if (this.isWaitingForContinue) {
+            // Hide overlays primeiro
+            if (this.ui && typeof this.ui.hideLapComplete === 'function') {
+                this.ui.hideLapComplete();
+            }
+            if (this.ui && typeof this.ui.hideOverlay === 'function') {
+                this.ui.hideOverlay();
+            }
+            
+            // Fazer um reset completo do jogo (mais seguro)
+            console.log('Game: Fazendo reset completo após lap completion');
+            this.resetGame();
+            
+            // Iniciar o jogo imediatamente após reset
+            setTimeout(() => {
+                console.log('Game: Iniciando jogo após reset completo');
+                this.startGame();
+            }, 50); // Pequeno delay para garantir que o reset foi aplicado
         }
     }
 
@@ -1435,7 +1588,6 @@ class Game {
         // Desenhar carro
         this.drawCar();
     }
-
     drawTrack() {
         // Desenhar fundo da pista (área cinza) - igual ao track generator
         this.ctx.strokeStyle = '#E5E5E5';
@@ -1450,6 +1602,12 @@ class Game {
         }
         this.ctx.closePath();
         this.ctx.stroke();
+        
+        // Desenhar zona de tolerância sutil no modo clássico
+        const gameMode = this.ui?.getGameMode ? this.ui.getGameMode() : 'classic';
+        if (gameMode === 'classic') {
+            this.drawToleranceZone();
+        }
         
         // Desenhar linha central da pista (pontilhada)
         this.ctx.strokeStyle = '#999';
@@ -1588,35 +1746,407 @@ class Game {
         }
     }
 
+    // Desenhar zona de tolerância sutil para o modo clássico
+    drawToleranceZone() {
+        const tolerance = 3; // Mesma tolerância usada na detecção de colisão
+        const halfWidth = this.trackWidth / 2;
+        const toleranceRadius = halfWidth + tolerance;
+        
+        // Criar boundaries de tolerância
+        const innerToleranceBoundary = [];
+        const outerToleranceBoundary = [];
+        
+        for (let i = 0; i < this.trackPoints.length; i++) {
+            const current = this.trackPoints[i];
+            const next = this.trackPoints[(i + 1) % this.trackPoints.length];
+            
+            // Calcular direção perpendicular
+            const dx = next.x - current.x;
+            const dy = next.y - current.y;
+            const length = Math.sqrt(dx * dx + dy * dy);
+            
+            if (length > 0) {
+                const perpX = -dy / length;
+                const perpY = dx / length;
+                
+                innerToleranceBoundary.push({
+                    x: current.x + perpX * toleranceRadius,
+                    y: current.y + perpY * toleranceRadius
+                });
+                
+                outerToleranceBoundary.push({
+                    x: current.x - perpX * toleranceRadius,
+                    y: current.y - perpY * toleranceRadius
+                });
+            }
+        }
+        
+        // Desenhar linhas de tolerância muito sutis (quase invisíveis)
+        this.ctx.strokeStyle = 'rgba(255, 255, 255, 0.15)'; // Branco muito transparente
+        this.ctx.lineWidth = 1;
+        this.ctx.setLineDash([2, 4]); // Pontilhado sutil
+        
+        // Linha interna de tolerância
+        this.ctx.beginPath();
+        this.ctx.moveTo(innerToleranceBoundary[0].x, innerToleranceBoundary[0].y);
+        for (let i = 1; i < innerToleranceBoundary.length; i++) {
+            this.ctx.lineTo(innerToleranceBoundary[i].x, innerToleranceBoundary[i].y);
+        }
+        this.ctx.closePath();
+        this.ctx.stroke();
+        
+        // Linha externa de tolerância
+        this.ctx.beginPath();
+        this.ctx.moveTo(outerToleranceBoundary[0].x, outerToleranceBoundary[0].y);
+        for (let i = 1; i < outerToleranceBoundary.length; i++) {
+            this.ctx.lineTo(outerToleranceBoundary[i].x, outerToleranceBoundary[i].y);
+        }
+        this.ctx.closePath();
+        this.ctx.stroke();
+        
+        // Reset line dash
+        this.ctx.setLineDash([]);
+    }
+
     drawCar() {
         const car = this.carController.position;
         
         this.ctx.save();
         this.ctx.translate(car.x, car.y);
-        this.ctx.rotate(car.angle);
+        this.ctx.rotate(car.angle - Math.PI/2); // Rotacionar -90 graus para que a frente fique correta
         
-        // Desenhar carro F1 style (inspirado no jogoref.js) - MAIOR
-        const carLength = 20; // Aumentado de 16 para 20
-        const carWidth = 10;  // Aumentado de 8 para 10
+        // Scale do carro (ajustar o tamanho baseado no SVG original 213x313)
+        const carScale = 0.08; // Escala pequena para ficar proporcional ao jogo
+        const carWidth = 213 * carScale;
+        const carHeight = 313 * carScale;
         
-        // Corpo principal do carro
-        this.ctx.fillStyle = '#FF6B00'; // Laranja McLaren
-        this.ctx.fillRect(-carLength/2, -carWidth/2, carLength, carWidth);
+        // Centralizar o carro
+        this.ctx.translate(-carWidth/2, -carHeight/2);
+        this.ctx.scale(carScale, carScale);
         
-        // Frente do carro (mais escura)
-        this.ctx.fillStyle = '#E55A00';
-        this.ctx.fillRect(carLength/2 - 5, -carWidth/2, 5, carWidth);
-        
-        // Cockpit (mais escuro)
-        this.ctx.fillStyle = '#333333';
-        this.ctx.fillRect(-3, -4, 10, 8);
-        
-        // Asas dianteiras
-        this.ctx.fillStyle = '#000000';
-        this.ctx.fillRect(carLength/2 - 3, -carWidth/2 - 1, 5, 1);
-        this.ctx.fillRect(carLength/2 - 3, carWidth/2, 5, 1);
+        // Desenhar SVG do carro com cor dinâmica
+        this.drawCarSVG(this.carColor, this.carSecondaryColor);
         
         this.ctx.restore();
+    }
+    
+    drawCarSVG(primaryColor, secondaryColor) {
+        // Base preta do carro (primeiro path)
+        this.ctx.fillStyle = '#020202';
+        this.ctx.beginPath();
+        this.ctx.moveTo(33, 0);
+        this.ctx.lineTo(181, 0);
+        this.ctx.lineTo(181, 33);
+        this.ctx.lineTo(163, 33);
+        this.ctx.lineTo(163, 50);
+        this.ctx.lineTo(131, 50);
+        this.ctx.lineTo(131, 66);
+        this.ctx.lineTo(164, 66);
+        this.ctx.lineTo(164, 50);
+        this.ctx.lineTo(213, 50);
+        this.ctx.lineTo(213, 116);
+        this.ctx.lineTo(164, 116);
+        this.ctx.lineTo(164, 131);
+        this.ctx.lineTo(180, 131);
+        this.ctx.lineTo(180, 199);
+        this.ctx.lineTo(164, 199);
+        this.ctx.lineTo(164, 214);
+        this.ctx.lineTo(213, 214);
+        this.ctx.lineTo(213, 280);
+        this.ctx.lineTo(180, 280);
+        this.ctx.lineTo(180, 313);
+        this.ctx.lineTo(33, 313);
+        this.ctx.lineTo(33, 280);
+        this.ctx.lineTo(0, 280);
+        this.ctx.lineTo(0, 214);
+        this.ctx.lineTo(50, 214);
+        this.ctx.lineTo(50, 199);
+        this.ctx.lineTo(33, 199);
+        this.ctx.lineTo(33, 131);
+        this.ctx.lineTo(50, 131);
+        this.ctx.lineTo(50, 116);
+        this.ctx.lineTo(0, 116);
+        this.ctx.lineTo(0, 50);
+        this.ctx.lineTo(50, 50);
+        this.ctx.lineTo(50, 34);
+        this.ctx.lineTo(33, 34);
+        this.ctx.closePath();
+        this.ctx.fill();
+        
+        // Corpo principal do carro (COR PRIMÁRIA - onde estava o vermelho #E30907)
+        this.ctx.fillStyle = primaryColor;
+        this.ctx.beginPath();
+        this.ctx.moveTo(99, 50);
+        this.ctx.lineTo(115, 50);
+        this.ctx.lineTo(115, 82);
+        this.ctx.lineTo(131, 82);
+        this.ctx.lineTo(131, 115);
+        this.ctx.lineTo(148, 115);
+        this.ctx.lineTo(148, 132);
+        this.ctx.lineTo(163, 132);
+        this.ctx.lineTo(163, 198);
+        this.ctx.lineTo(147, 198);
+        this.ctx.lineTo(147, 215);
+        this.ctx.lineTo(131, 215);
+        this.ctx.lineTo(131, 264);
+        this.ctx.lineTo(122, 264);
+        this.ctx.lineTo(122, 296);
+        this.ctx.lineTo(92, 296);
+        this.ctx.lineTo(92, 264);
+        this.ctx.lineTo(83, 264);
+        this.ctx.lineTo(83, 215);
+        this.ctx.lineTo(66, 215);
+        this.ctx.lineTo(66, 198);
+        this.ctx.lineTo(50, 198);
+        this.ctx.lineTo(50, 132);
+        this.ctx.lineTo(66, 132);
+        this.ctx.lineTo(66, 115);
+        this.ctx.lineTo(83, 115);
+        this.ctx.lineTo(83, 83);
+        this.ctx.lineTo(99, 83);
+        this.ctx.closePath();
+        this.ctx.fill();
+        
+        // Parte inferior traseira (#010000)
+        this.ctx.fillStyle = '#010000';
+        this.ctx.beginPath();
+        this.ctx.moveTo(1, 215);
+        this.ctx.lineTo(50, 215);
+        this.ctx.lineTo(50, 231);
+        this.ctx.lineTo(66, 231);
+        this.ctx.lineTo(66, 215);
+        this.ctx.lineTo(83, 215);
+        this.ctx.lineTo(83, 264);
+        this.ctx.lineTo(92, 264);
+        this.ctx.lineTo(92, 296);
+        this.ctx.lineTo(122, 296);
+        this.ctx.lineTo(122, 264);
+        this.ctx.lineTo(131, 264);
+        this.ctx.lineTo(131, 215);
+        this.ctx.lineTo(147, 215);
+        this.ctx.lineTo(147, 231);
+        this.ctx.lineTo(164, 231);
+        this.ctx.lineTo(164, 215);
+        this.ctx.lineTo(213, 215);
+        this.ctx.lineTo(213, 280);
+        this.ctx.lineTo(180, 280);
+        this.ctx.lineTo(180, 313);
+        this.ctx.lineTo(33, 313);
+        this.ctx.lineTo(33, 280);
+        this.ctx.lineTo(1, 280);
+        this.ctx.closePath();
+        this.ctx.fill();
+        
+        // Cockpit (#040000)
+        this.ctx.fillStyle = '#040000';
+        this.ctx.beginPath();
+        this.ctx.moveTo(98, 115);
+        this.ctx.lineTo(115, 115);
+        this.ctx.lineTo(115, 131);
+        this.ctx.lineTo(131, 131);
+        this.ctx.lineTo(131, 182);
+        this.ctx.lineTo(115, 182);
+        this.ctx.lineTo(115, 198);
+        this.ctx.lineTo(98, 198);
+        this.ctx.lineTo(98, 182);
+        this.ctx.lineTo(82, 182);
+        this.ctx.lineTo(82, 131);
+        this.ctx.lineTo(98, 131);
+        this.ctx.closePath();
+        this.ctx.fill();
+        
+        // Topo frontal (black)
+        this.ctx.fillStyle = 'black';
+        this.ctx.fillRect(34, 1, 146, 32);
+        
+        // Detalhes cinza (#262626)
+        this.ctx.fillStyle = '#262626';
+        this.ctx.beginPath();
+        this.ctx.moveTo(33, 0);
+        this.ctx.lineTo(181, 0);
+        this.ctx.lineTo(181, 33);
+        this.ctx.lineTo(180, 33);
+        this.ctx.lineTo(180, 1);
+        this.ctx.lineTo(34, 1);
+        this.ctx.lineTo(34, 33);
+        this.ctx.lineTo(50, 33);
+        this.ctx.lineTo(50, 17);
+        this.ctx.lineTo(164, 17);
+        this.ctx.lineTo(164, 33);
+        this.ctx.lineTo(51, 33);
+        this.ctx.lineTo(51, 49);
+        this.ctx.lineTo(83, 49);
+        this.ctx.lineTo(83, 66);
+        this.ctx.lineTo(50, 66);
+        this.ctx.lineTo(50, 34);
+        this.ctx.lineTo(33, 34);
+        this.ctx.closePath();
+        this.ctx.fill();
+        
+        // Laterais (black)
+        this.ctx.fillStyle = 'black';
+        this.ctx.fillRect(164, 132, 16, 66);
+        this.ctx.fillRect(34, 132, 16, 66);
+        
+        // Interior cockpit (#242424)
+        this.ctx.fillStyle = '#242424';
+        this.ctx.fillRect(98, 148, 17, 50);
+        this.ctx.fillRect(33, 131, 17, 1);
+        this.ctx.fillRect(34, 132, 0, 66);
+        this.ctx.fillRect(66, 198, 0, 33);
+        this.ctx.fillRect(50, 231, 0, -16);
+        this.ctx.fillRect(1, 215, 49, 65);
+        this.ctx.fillRect(0, 280, 1, -66);
+        this.ctx.fillRect(50, 214, -50, -15);
+        this.ctx.fillRect(33, 199, 17, -68);
+        
+        // Detalhes estruturais (#131313)
+        this.ctx.fillStyle = '#131313';
+        this.ctx.beginPath();
+        this.ctx.moveTo(163, 116);
+        this.ctx.lineTo(164, 116);
+        this.ctx.lineTo(164, 131);
+        this.ctx.lineTo(180, 131);
+        this.ctx.lineTo(180, 132);
+        this.ctx.lineTo(164, 132);
+        this.ctx.lineTo(164, 198);
+        this.ctx.lineTo(180, 198);
+        this.ctx.lineTo(180, 199);
+        this.ctx.lineTo(164, 199);
+        this.ctx.lineTo(164, 214);
+        this.ctx.lineTo(213, 214);
+        this.ctx.lineTo(213, 215);
+        this.ctx.lineTo(164, 215);
+        this.ctx.lineTo(164, 231);
+        this.ctx.lineTo(147, 231);
+        this.ctx.lineTo(147, 198);
+        this.ctx.lineTo(163, 198);
+        this.ctx.lineTo(163, 132);
+        this.ctx.lineTo(148, 132);
+        this.ctx.lineTo(148, 131);
+        this.ctx.lineTo(163, 131);
+        this.ctx.closePath();
+        this.ctx.fill();
+        
+        // Detalhes laterais externos
+        this.ctx.fillStyle = '#262626';
+        this.ctx.fillRect(180, 66, 17, 33);
+        this.ctx.fillRect(17, 66, 16, 33);
+        
+        // Elementos traseiros em COR SECUNDÁRIA (onde estava o amarelo #D0FF00)
+        this.ctx.fillStyle = secondaryColor;
+        this.ctx.beginPath();
+        this.ctx.moveTo(50, 280);
+        this.ctx.lineTo(83, 280);
+        this.ctx.lineTo(83, 296);
+        this.ctx.lineTo(82, 297);
+        this.ctx.lineTo(50, 297);
+        this.ctx.closePath();
+        this.ctx.fill();
+        
+        this.ctx.fillStyle = secondaryColor;
+        this.ctx.fillRect(131, 280, 32, 16);
+        
+        // Linha frontal superior em COR SECUNDÁRIA (onde estava o amarelo)
+        this.ctx.fillStyle = secondaryColor;
+        this.ctx.fillRect(50, 17, 114, 16);
+        
+        // Outros detalhes
+        this.ctx.fillStyle = '#242525';
+        this.ctx.beginPath();
+        this.ctx.moveTo(180, 231);
+        this.ctx.lineTo(197, 231);
+        this.ctx.lineTo(197, 263);
+        this.ctx.lineTo(196, 264);
+        this.ctx.lineTo(180, 264);
+        this.ctx.closePath();
+        this.ctx.fill();
+        
+        this.ctx.fillStyle = '#252526';
+        this.ctx.fillRect(17, 231, 16, 33);
+        
+        // Faróis (#E5E5E5 e #F3F3F3)
+        this.ctx.fillStyle = '#E5E5E5';
+        this.ctx.fillRect(138, 82, 26, 17);
+        
+        this.ctx.fillStyle = '#F3F3F3';
+        this.ctx.fillRect(50, 82, 25, 16);
+        
+        // Detalhes adicionais
+        this.ctx.fillStyle = '#262626';
+        this.ctx.fillRect(50, 247, 25, 17);
+        
+        this.ctx.fillStyle = '#252525';
+        this.ctx.fillRect(139, 247, 25, 17);
+        this.ctx.fillRect(131, 50, 33, 16);
+        
+        // Mais detalhes laterais
+        this.ctx.fillStyle = '#E9E9EA';
+        this.ctx.fillRect(147, 215, 17, 16);
+        
+        this.ctx.fillStyle = '#020000';
+        this.ctx.fillRect(98, 182, 17, 16);
+        
+        this.ctx.fillStyle = '#F4F4F4';
+        this.ctx.fillRect(50, 215, 16, 16);
+        
+        // Detalhes finais
+        this.ctx.fillStyle = '#212121';
+        this.ctx.beginPath();
+        this.ctx.moveTo(50, 247);
+        this.ctx.lineTo(75, 247);
+        this.ctx.lineTo(75, 264);
+        this.ctx.lineTo(50, 264);
+        this.ctx.closePath();
+        this.ctx.moveTo(51, 248);
+        this.ctx.lineTo(51, 263);
+        this.ctx.lineTo(71, 263);
+        this.ctx.lineTo(70, 257);
+        this.ctx.lineTo(72, 253);
+        this.ctx.lineTo(66, 253);
+        this.ctx.lineTo(66, 251);
+        this.ctx.lineTo(68, 250);
+        this.ctx.lineTo(68, 248);
+        this.ctx.closePath();
+        this.ctx.fill();
+        
+        this.ctx.fillStyle = '#5D2424';
+        this.ctx.beginPath();
+        this.ctx.moveTo(163, 116);
+        this.ctx.lineTo(164, 116);
+        this.ctx.lineTo(164, 131);
+        this.ctx.lineTo(180, 131);
+        this.ctx.lineTo(180, 132);
+        this.ctx.lineTo(164, 132);
+        this.ctx.lineTo(164, 198);
+        this.ctx.lineTo(180, 198);
+        this.ctx.lineTo(180, 199);
+        this.ctx.lineTo(164, 199);
+        this.ctx.lineTo(164, 214);
+        this.ctx.lineTo(163, 214);
+        this.ctx.lineTo(163, 132);
+        this.ctx.lineTo(148, 132);
+        this.ctx.lineTo(148, 131);
+        this.ctx.lineTo(163, 131);
+        this.ctx.closePath();
+        this.ctx.fill();
+    }
+    
+    // Função auxiliar para escurecer uma cor
+    darkenColor(color, factor) {
+        // Converter hex para RGB
+        const hex = color.replace('#', '');
+        const r = parseInt(hex.substr(0, 2), 16);
+        const g = parseInt(hex.substr(2, 2), 16);
+        const b = parseInt(hex.substr(4, 2), 16);
+        
+        // Escurecer
+        const newR = Math.floor(r * (1 - factor));
+        const newG = Math.floor(g * (1 - factor));
+        const newB = Math.floor(b * (1 - factor));
+        
+        // Converter de volta para hex
+        return `#${newR.toString(16).padStart(2, '0')}${newG.toString(16).padStart(2, '0')}${newB.toString(16).padStart(2, '0')}`;
     }
 
     startGameLoop() {
@@ -1625,10 +2155,17 @@ class Game {
 
     gameLoop() {
         const currentTime = performance.now();
-        const deltaTime = currentTime - this.lastFrameTime;
-        this.lastFrameTime = currentTime;
         
-        this.update(deltaTime);
+        // Calcular delta time
+        this.deltaTime = currentTime - this.lastTime;
+        this.lastTime = currentTime;
+        
+        // Limitar delta time para evitar stuttering (cap de 33ms = ~30 FPS mínimo)
+        if (this.deltaTime > 33) {
+            this.deltaTime = 33;
+        }
+        
+        this.update(this.deltaTime);
         this.draw();
         
         requestAnimationFrame(() => this.gameLoop());
@@ -1666,13 +2203,18 @@ class CarController {
             angle: 0
         };
         
-        // Física igual ao car.js original
+        // Física ajustada para melhor velocidade e controle
         this.speed = 0;
-        this.maxSpeed = 2.4;
-        this.acceleration = 0.11;
-        this.deceleration = 0.05;
-        this.turnSpeed = 0.06;
+        this.maxSpeed = 2.2; // Aumentado de 1.8 para 2.2 (mais rápido)
+        this.acceleration = 0.10; // Aumentado de 0.08 para 0.10 (acelera mais rápido)
+        this.deceleration = 0.045; // Aumentado de 0.04 para 0.045
+        this.turnSpeed = 0.05; // Aumentado de 0.04 para 0.05 (vira mais responsivo)
         this.friction = 0.95;
+        
+        // Proteção contra movimento automático
+        this.justReset = false;
+        this.justResetClearedManually = false; // Flag para evitar conflitos
+        this.automaticCleanupScheduled = false; // Evitar múltiplos timers
         
         this.velocity = { x: 0, y: 0 };
         this.lastUpdateTime = performance.now();
@@ -1686,8 +2228,11 @@ class CarController {
         // Reset velocidade quando reposicionar
         this.speed = 0;
         this.velocity = { x: 0, y: 0 };
+        this.justReset = true; // Prevenir aceleração imediata
+        this.justResetClearedManually = false; // Reset flag de limpeza manual
+        this.automaticCleanupScheduled = false; // Reset flag de timer automático
         this.lastUpdateTime = performance.now(); // Reset timer também
-        console.debug(`🚗 [CarController] Position set, speed reset to ${this.speed}`);
+        console.debug(`🚗 [CarController] Position set, speed reset to ${this.speed}, justReset=${this.justReset}`);
     }
 
     update() {
@@ -1702,12 +2247,34 @@ class CarController {
         // Log para debug da física
         const oldPosition = { x: this.position.x, y: this.position.y };
 
-        // CORRIGIDO: Não forçar velocidade máxima, deixar acelerar gradualmente
-        // O car.js original usa auto-aceleração até velocidade máxima
-        if (this.speed < this.maxSpeed) {
-            this.speed += this.acceleration * timeMultiplier;
-            if (this.speed > this.maxSpeed) {
-                this.speed = this.maxSpeed;
+        // ACELERAÇÃO AUTOMÁTICA - mas só se não acabou de resetar
+        if (!this.justReset) {
+            if (this.speed < this.maxSpeed) {
+                this.speed += this.acceleration * timeMultiplier;
+                if (this.speed > this.maxSpeed) {
+                    this.speed = this.maxSpeed;
+                }
+            }
+        } else {
+            // Apenas limpar automaticamente se não foi limpo manualmente
+            // E apenas uma vez para evitar múltiplas execuções
+            if (!this.justResetClearedManually && !this.automaticCleanupScheduled) {
+                this.automaticCleanupScheduled = true;
+                setTimeout(() => {
+                    // Verificar novamente se não foi limpo manualmente no meio tempo
+                    if (!this.justResetClearedManually) {
+                        const isGameRunning = window.game && window.game.isRunning && !window.game.isWaitingForContinue && !window.game.isPaused;
+                        if (isGameRunning) {
+                            console.log(`⏰ CarController: Limpando justReset flag automaticamente - permitindo aceleração`);
+                            this.justReset = false;
+                        } else {
+                            console.log(`⏰ CarController: NÃO limpando justReset automaticamente - jogo não está rodando`);
+                        }
+                    } else {
+                        console.log(`⏰ CarController: NÃO limpando justReset automaticamente - foi limpo manualmente`);
+                    }
+                    this.automaticCleanupScheduled = false;
+                }, 100);
             }
         }
 

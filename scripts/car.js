@@ -5,15 +5,15 @@ class Car {
         this.ctx = canvas.getContext('2d');
         this.track = track;
         
-        // Position and movement
+        // Position and movement - Configurações originais de referência
         this.x = track.startLine.x;
         this.y = track.startLine.y;
         this.angle = track.startLine.angle;
         this.speed = 0;
-        this.maxSpeed = 2.4; // Mais rápido para sensação de velocidade
-        this.acceleration = 0.11; // Resposta mais ágil
-        this.deceleration = 0.05;
-        this.turnSpeed = 0.06; // Slightly reduced for better control
+        this.maxSpeed = 1.8; // Velocidade original mais conservadora
+        this.acceleration = 0.08; // Aceleração mais gradual
+        this.deceleration = 0.04; // Desaceleração mais suave
+        this.turnSpeed = 0.04; // Controle mais preciso das curvas
         
         // Physics
         this.velocity = { x: 0, y: 0 };
@@ -47,14 +47,12 @@ class Car {
     }
     
     update(deltaTime) {
-        // Limit deltaTime to prevent large jumps (inspired by reference implementation)
-        const limitedDeltaTime = Math.min(deltaTime, 100);
+        // Otimização: deltaTime já foi limitado no gameLoop para evitar stuttering
         
         // Normalize deltaTime to 60 FPS standard (16.67ms per frame)
         // This ensures consistent speed across different devices and frame rates
-        const TARGET_FPS = 60;
-        const TARGET_FRAME_TIME = 1000 / TARGET_FPS; // 16.67ms
-        const timeMultiplier = limitedDeltaTime / TARGET_FRAME_TIME;
+        const TARGET_FRAME_TIME = 16.67; // 60 FPS target
+        const timeMultiplier = deltaTime / TARGET_FRAME_TIME;
         
         this.previousPosition.x = this.x;
         this.previousPosition.y = this.y;
@@ -76,8 +74,16 @@ class Car {
             }
         } else {
             // Clear the reset flag after a short delay to allow movement again
+            // BUT only if the game is not waiting for user input
             setTimeout(() => {
-                this.justReset = false;
+                // Check if game is waiting for continue before clearing justReset
+                const isWaitingForInput = window.game && (window.game.isWaitingForContinue || window.game.isPaused);
+                if (!isWaitingForInput) {
+                    console.log(`⏰ Car: Limpando justReset flag após delay - permitindo aceleração automática novamente`);
+                    this.justReset = false;
+                } else {
+                    console.log(`⏰ Car: NÃO limpando justReset - jogo aguardando input do usuário`);
+                }
             }, 100);
         }
         
@@ -237,6 +243,7 @@ class Car {
                     this.lapCompleted = true;
                     
                     console.log(`🏁 Car: ✅ Valid lap completed in ${lapTime}ms`);
+                    console.log(`🏁 Car: Tempo detalhado - currentTime=${currentTime}, currentLapStartTime=${this.currentLapStartTime}, diff=${lapTime}`);
                     console.log(`🏁 Car: Direction validation passed - crossed from ${crossingInfo.fromSide} to ${crossingInfo.toSide}`);
                     console.log(`🏁 Car: Anti-cheat validation passed - pattern matches: ${this.establishedCrossingPattern}`);
                     
@@ -250,6 +257,7 @@ class Car {
                     
                     // Trigger lap completion event
                     if (window.game && window.game.onLapCompleted) {
+                        console.log(`🎮 Car: Chamando game.onLapCompleted com lapTime=${lapTime}ms`);
                         window.game.onLapCompleted(lapTime);
                     }
                     
@@ -329,6 +337,8 @@ class Car {
     
     // Reset car to start position
     reset() {
+        console.log(`🔄 Car reset: ANTES - X=${this.x.toFixed(2)}, Y=${this.y.toFixed(2)}, Speed=${this.speed.toFixed(3)}, Angle=${this.angle.toFixed(2)}`);
+        
         this.x = this.track.startLine.x;
         this.y = this.track.startLine.y;
         this.angle = this.track.startLine.angle;
@@ -337,16 +347,22 @@ class Car {
         this.currentLapStartTime = null;
         this.lapCompleted = false;
         this.justReset = true; // Prevent immediate acceleration
+        
+        console.log(`🔄 Car reset: DEPOIS - X=${this.x.toFixed(2)}, Y=${this.y.toFixed(2)}, Speed=${this.speed.toFixed(3)}, Angle=${this.angle.toFixed(2)}, justReset=${this.justReset}`);
     }
     
     // Reset only position (for continuous mode)
     resetPosition() {
+        console.log(`🔄 Car resetPosition: ANTES - X=${this.x.toFixed(2)}, Y=${this.y.toFixed(2)}, Speed=${this.speed.toFixed(3)}, Angle=${this.angle.toFixed(2)}`);
+        
         this.x = this.track.startLine.x;
         this.y = this.track.startLine.y;
         this.angle = this.track.startLine.angle;
         // Reset velocidade para zero no modo contínuo também
         this.speed = 0;
         this.velocity = { x: 0, y: 0 };
+        
+        console.log(`🔄 Car resetPosition: DEPOIS - X=${this.x.toFixed(2)}, Y=${this.y.toFixed(2)}, Speed=${this.speed.toFixed(3)}, Angle=${this.angle.toFixed(2)}`);
     }
     
     // Start a new lap
@@ -377,19 +393,19 @@ class Car {
     // Update car color based on team selection
     updateTeamColor(teamValue) {
         const teamColors = {
-            ferrari: '#DC143C',        // Ferrari red
-            redbull: '#1E41FF',        // Red Bull blue
-            mercedes: '#00D2BE',       // Mercedes teal
-            mclaren: '#FF8700',        // McLaren orange
-            astonmartin: '#006F62',    // Aston Martin green
-            alpine: '#0090FF',         // Alpine blue
-            williams: '#005AFF',       // Williams blue
-            rb: '#6692FF',             // RB light blue
-            sauber: '#52C41A',         // Sauber green
-            haas: '#787878'            // Haas gray (more visible than white)
+            ferrari: '#E30907',        // Ferrari red (primary)
+            redbull: '#1E41FF',        // Red Bull blue (primary)
+            mercedes: '#000000',       // Mercedes black (primary)
+            mclaren: '#FF8700',        // McLaren orange (primary)
+            astonmartin: '#00FF80',    // Aston Martin green crystal (primary)
+            alpine: '#FF69B4',         // Alpine pink (primary)
+            williams: '#004080',       // Williams ocean blue (primary)
+            rb: '#4169E1',             // RB royal blue (primary)
+            sauber: '#228B22',         // Sauber/Stake green (primary)
+            haas: '#000000'            // Haas black (primary)
         };
         
-        this.color = teamColors[teamValue] || '#FF0000';
+        this.color = teamColors[teamValue] || '#E30907';
     }
 }
 

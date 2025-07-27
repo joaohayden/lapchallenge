@@ -12,7 +12,7 @@
         }
         
         .controls-panel {
-            height: 440px !important;
+            height: 440px !important; /* Igual ao main.css */
             max-height: 440px !important;
             min-width: 220px !important;
             max-width: 280px !important;
@@ -20,8 +20,8 @@
         }
         
         .game-screen {
-            width: 533px !important;
-            height: 440px !important;
+            width: 533px !important; /* Voltando ao original igual index */
+            height: 440px !important; /* Voltando ao original */
             min-width: 320px !important;
             max-width: 533px !important;
             flex: 0 0 533px !important;
@@ -31,19 +31,19 @@
         }
         
         .times-column {
-            height: 440px !important;
+            height: 440px !important; /* Igual ao main.css */
             max-height: 440px !important;
             min-width: 220px !important;
             max-width: 280px !important;
             flex: 0 1 250px !important;
         }
         
-        /* Canvas com dimensões exatas do index */
+        /* Canvas ocupando todo o espaço disponível do card */
         #trackCanvas {
-            width: 533px !important;
-            height: 400px !important;
-            max-width: 533px !important;
-            max-height: 400px !important;
+            width: 100% !important; /* Ocupa toda a largura do container */
+            height: 100% !important; /* Ocupa toda a altura do container */
+            max-width: 533px !important; /* Limita ao tamanho do card */
+            max-height: 400px !important; /* Limita à altura do card */
             background: #87CEEB !important; /* Fundo azul igual ao track generator */
             cursor: crosshair !important;
         }
