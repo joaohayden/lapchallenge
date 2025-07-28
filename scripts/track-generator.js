@@ -149,6 +149,12 @@ class TrackGenerator {
         this.gameStartTime = null;
         this.originalInstructions = null;
         
+        // Anti-cheat system variables
+        this.antiCheatZone = null;
+        this.hasLeftStartZone = false;
+        this.cheatingDetected = false;
+        this.wasInsideAntiCheatZone = false;
+        
         this.initializeCanvas();
         this.initializeModal();
         this.bindEvents();
@@ -621,6 +627,10 @@ class TrackGenerator {
         if (canvasPoints.length > 0 && canvasPoints[0].angle !== undefined) {
             this.drawStartArrow(canvasPoints[0].x, canvasPoints[0].y, canvasPoints[0].angle);
         }
+        
+        // Inicializar e desenhar zona anti-cheat
+        this.initializeAntiCheatZone(canvasPoints);
+        // this.drawAntiCheatZone(); // INVISÍVEL: Comentado para produção
     }
 
     drawGameStyleArrows(canvasPoints, scale) {
@@ -1514,6 +1524,82 @@ class TrackGenerator {
             submitBtn.textContent = '📤 Retry Submission';
             submitBtn.disabled = false;
         }
+    }
+    
+    // Sistema Anti-Cheat para Track Generator
+    initializeAntiCheatZone(trackPoints) {
+        if (!trackPoints || trackPoints.length < 2) {
+            this.antiCheatZone = null;
+            return;
+        }
+        
+        const startPoint = trackPoints[0];
+        const nextPoint = trackPoints[1];
+        
+        // Calcular escala baseada no canvas
+        const scale = Math.min(this.canvas.width, this.canvas.height) / 400;
+        
+        // Calcular posição da zona de saída
+        const carSize = scale * 3;
+        const zoneDistance = carSize * 6; // Mesma distância do jogo principal
+        
+        const dx = nextPoint.x - startPoint.x;
+        const dy = nextPoint.y - startPoint.y;
+        const length = Math.sqrt(dx * dx + dy * dy);
+        const normalizedDx = dx / length;
+        const normalizedDy = dy / length;
+        
+        const zoneX = startPoint.x + normalizedDx * zoneDistance;
+        const zoneY = startPoint.y + normalizedDy * zoneDistance;
+        
+        // Calcular vetor perpendicular para orientar o retângulo igual à linha de largada
+        const perpDx = -normalizedDy;
+        const perpDy = normalizedDx;
+        const anglePerp = Math.atan2(perpDy, perpDx);
+        
+        this.antiCheatZone = {
+            x: zoneX,
+            y: zoneY,
+            width: 80 * scale, // Largura fixa em pixels
+            height: carSize * 1, // Altura baseada no tamanho do carro
+            angle: anglePerp, // Mesma orientação que a linha de largada
+            isActive: false
+        };
+    }
+    
+    drawAntiCheatZone() {
+        if (!this.antiCheatZone) return;
+        
+        const zone = this.antiCheatZone;
+        
+        // Cor baseada no estado (apenas para visualização no generator)
+        this.ctx.fillStyle = 'rgba(255, 0, 0, 0.3)'; // Vermelho transparente
+        
+        // Salvar estado do contexto
+        this.ctx.save();
+        
+        // Transladar para o centro da zona
+        this.ctx.translate(zone.x, zone.y);
+        
+        // Rotacionar para alinhar com a direção da pista
+        this.ctx.rotate(zone.angle);
+        
+        // Desenhar retângulo centrado na origem
+        this.ctx.fillRect(-zone.width / 2, -zone.height / 2, zone.width, zone.height);
+        
+        // Contorno
+        this.ctx.strokeStyle = '#ff0000';
+        this.ctx.lineWidth = 2;
+        this.ctx.strokeRect(-zone.width / 2, -zone.height / 2, zone.width, zone.height);
+        
+        // Restaurar estado do contexto
+        this.ctx.restore();
+        
+        // Texto indicativo
+        this.ctx.fillStyle = '#000000';
+        this.ctx.font = '10px Arial';
+        this.ctx.textAlign = 'center';
+        this.ctx.fillText('ANTI-CHEAT', zone.x, zone.y - zone.height / 2 - 5);
     }
 }
 

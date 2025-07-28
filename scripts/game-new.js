@@ -863,6 +863,10 @@ class Game {
         this.carController.justReset = false;
         this.carController.justResetClearedManually = true;
         
+        // Inicializar zona anti-cheat
+        this.initializeAntiCheatZone();
+        console.log('🎯 Zona anti-cheat inicializada no startGame');
+        
         // Notificar UI
         if (this.ui) {
             this.ui.gameState = 'playing';
@@ -1134,31 +1138,39 @@ class Game {
         
         const zoneX = this.antiCheatZone.x;
         const zoneY = this.antiCheatZone.y;
-        const zoneRadius = this.antiCheatZone.radius;
+        const zoneWidth = this.antiCheatZone.width;
+        const zoneHeight = this.antiCheatZone.height;
+        const zoneAngle = this.antiCheatZone.angle;
         
-        // Verificar se carro está na zona
-        const distanceToZone = Math.sqrt((carX - zoneX) ** 2 + (carY - zoneY) ** 2);
+        // Verificar se carro está na zona retangular orientada
+        const isInZone = this.isPointInRotatedRect(carX, carY, zoneX, zoneY, zoneWidth, zoneHeight, zoneAngle);
         
-        console.log('🔍 Zone check:', { 
-            distanceToZone: distanceToZone.toFixed(1), 
-            zoneRadius: zoneRadius.toFixed(1),
-            hasLeftStartZone: this.hasLeftStartZone,
-            cheatingDetected: this.cheatingDetected
-        });
+        // Log apenas quando há mudança de estado
+        if (isInZone !== this.wasInsideAntiCheatZone) {
+            console.log('🎯 ZONA ANTI-CHEAT:', { 
+                evento: isInZone ? 'ENTRANDO' : 'SAINDO',
+                hasLeftStartZone: this.hasLeftStartZone,
+                cheatingDetected: this.cheatingDetected,
+                carPos: `(${carX.toFixed(0)}, ${carY.toFixed(0)})`
+            });
+        }
         
         // Calcular distância do carro até a linha de largada
         const startPoint = this.trackPoints[0];
         const distanceToStart = Math.sqrt((carX - startPoint.x) ** 2 + (carY - startPoint.y) ** 2);
         
-        if (distanceToZone < zoneRadius) {
+        if (isInZone) {
             // SÓ PROCESSA SE ESTÁ ENTRANDO NA ZONA AGORA (não estava antes)
             if (!this.wasInsideAntiCheatZone) {
                 if (!this.hasLeftStartZone) {
                     // Primeira passagem - carro está saindo da zona inicial (normal)
                     this.hasLeftStartZone = true;
+                    console.log('✅ PRIMEIRA PASSAGEM - Carro saiu da zona inicial (OK)');
                 } else {
                     // Segunda passagem - TRAPAÇA!
                     this.cheatingDetected = true;
+                    console.log('🚫 SEGUNDA PASSAGEM - TRAPAÇA DETECTADA!');
+                    this.handleCheatDetected();
                 }
             }
             this.wasInsideAntiCheatZone = true;
@@ -1168,6 +1180,23 @@ class Game {
         
         // Atualizar estado da zona para desenho
         this.antiCheatZone.isActive = this.hasLeftStartZone;
+    }
+    
+    // Verificar se um ponto está dentro de um retângulo rotacionado
+    isPointInRotatedRect(px, py, rectX, rectY, rectWidth, rectHeight, rectAngle) {
+        // Transladar o ponto para a origem do retângulo
+        const translatedX = px - rectX;
+        const translatedY = py - rectY;
+        
+        // Rotacionar o ponto no sentido contrário ao retângulo
+        const cos = Math.cos(-rectAngle);
+        const sin = Math.sin(-rectAngle);
+        
+        const rotatedX = translatedX * cos - translatedY * sin;
+        const rotatedY = translatedX * sin + translatedY * cos;
+        
+        // Verificar se o ponto rotacionado está dentro do retângulo não-rotacionado
+        return Math.abs(rotatedX) <= rectWidth / 2 && Math.abs(rotatedY) <= rectHeight / 2;
     }
     
     // Lidar com trapaça detectada
@@ -1553,21 +1582,8 @@ class Game {
     
     // Inicializar zona anti-trapaça
     initializeAntiCheatZone() {
-        console.log('🔍 Estado das flags ANTES de inicializar zona:', {
-            hasLeftStartZone: this.hasLeftStartZone,
-            cheatingDetected: this.cheatingDetected
-        });
-        
-        console.log('🔍 Debug initializeAntiCheatZone:', {
-            trackPointsExists: !!this.trackPoints,
-            trackPointsLength: this.trackPoints?.length,
-            firstPoint: this.trackPoints?.[0],
-            secondPoint: this.trackPoints?.[1]
-        });
-        
         // Verificar se trackPoints existe e tem pelo menos 2 pontos
         if (!this.trackPoints || this.trackPoints.length < 2) {
-            console.log('⚠️ trackPoints não disponível ainda, não é possível inicializar zona anti-trapaça');
             this.antiCheatZone = null;
             return;
         }
@@ -1575,20 +1591,15 @@ class Game {
         const startPoint = this.trackPoints[0];
         const nextPoint = this.trackPoints[1];
         
-        console.log('🔍 Points for anti-cheat zone:', { startPoint, nextPoint });
-        
         // Calcular escala localmente se carController.scale não estiver disponível
         let scale = this.carController?.scale;
         if (!scale || isNaN(scale)) {
             scale = Math.min(this.canvas.width, this.canvas.height) / 400;
-            console.log('⚠️ carController.scale inválido, calculando escala localmente:', scale);
-        } else {
-            console.log('✅ Usando escala do carController:', scale);
         }
         
         // Calcular posição da zona de saída
         const carSize = scale * 3;
-        const zoneDistance = carSize * 2; // Bem próximo: apenas 2x o tamanho do carro
+        const zoneDistance = carSize * 12; // Bem mais à frente - onde você marcou em vermelho
         
         const dx = nextPoint.x - startPoint.x;
         const dy = nextPoint.y - startPoint.y;
@@ -1599,23 +1610,25 @@ class Game {
         const zoneX = startPoint.x + normalizedDx * zoneDistance;
         const zoneY = startPoint.y + normalizedDy * zoneDistance;
         
+        // Calcular vetor perpendicular para orientar o retângulo igual à linha de largada
+        const perpDx = -normalizedDy; // Perpendicular (90° rotacionado)
+        const perpDy = normalizedDx;
+        const anglePerp = Math.atan2(perpDy, perpDx); // Ângulo perpendicular à direção
+        
         console.log('🔍 Zone calculation:', {
-            scale, carSize, zoneDistance, dx, dy, length, normalizedDx, normalizedDy, zoneX, zoneY
+            scale, carSize, zoneDistance, dx, dy, length, normalizedDx, normalizedDy, zoneX, zoneY, anglePerp
         });
         
         this.antiCheatZone = {
             x: zoneX,
             y: zoneY,
-            radius: carSize * 3, // Zona bem maior para não conseguir passar pelo lado
+            width: this.trackWidth * 1.5, // Largura baseada na largura da pista (cobre toda a pista)
+            height: carSize * 1, // Altura fina como uma linha
+            angle: anglePerp, // Mesma orientação que a linha de largada (perpendicular ao movimento)
             isActive: false
         };
         
-        console.log('🎯 Zona anti-trapaça inicializada:', this.antiCheatZone);
-        
-        console.log('🔍 Estado das flags DEPOIS de inicializar zona:', {
-            hasLeftStartZone: this.hasLeftStartZone,
-            cheatingDetected: this.cheatingDetected
-        });
+        console.log('🎯 Zona anti-trapaça inicializada');
     }
 
     completeLap() {
@@ -1783,6 +1796,7 @@ class Game {
         this.drawTrack();
         
         // Zona anti-trapaça ativa mas invisível (funcionalidade mantida)
+        // this.drawAntiCheatZone(); // INVISÍVEL: Funciona por coordenadas, não por cor
         
         // Desenhar carro
         this.drawCar();
@@ -1951,7 +1965,7 @@ class Game {
         this.ctx.setLineDash([]);
     }
 
-    // Desenhar zona anti-trapaça vermelha (temporário para teste)
+    // Desenhar zona anti-trapaça retangular (temporário para teste)
     drawAntiCheatZone() {
         if (!this.antiCheatZone) return;
         
@@ -1966,21 +1980,31 @@ class Game {
             this.ctx.fillStyle = 'rgba(100, 100, 100, 0.3)'; // CINZA: Estado inicial (carro ainda na zona)
         }
         
-        // Desenhar círculo da zona
-        this.ctx.beginPath();
-        this.ctx.arc(zone.x, zone.y, zone.radius, 0, 2 * Math.PI);
-        this.ctx.fill();
+        // Salvar estado do contexto
+        this.ctx.save();
+        
+        // Transladar para o centro da zona
+        this.ctx.translate(zone.x, zone.y);
+        
+        // Rotacionar para alinhar com a direção da pista
+        this.ctx.rotate(zone.angle);
+        
+        // Desenhar retângulo centrado na origem
+        this.ctx.fillRect(-zone.width / 2, -zone.height / 2, zone.width, zone.height);
         
         // Contorno
         this.ctx.strokeStyle = this.cheatingDetected ? '#ff0000' : '#000000';
         this.ctx.lineWidth = 2;
-        this.ctx.stroke();
+        this.ctx.strokeRect(-zone.width / 2, -zone.height / 2, zone.width, zone.height);
+        
+        // Restaurar estado do contexto
+        this.ctx.restore();
         
         // Texto indicativo (temporário para debug)
         this.ctx.fillStyle = '#000000';
         this.ctx.font = '12px Arial';
         this.ctx.textAlign = 'center';
-        this.ctx.fillText('ZONA ANTI-TRAPAÇA', zone.x, zone.y - zone.radius - 10);
+        this.ctx.fillText('ZONA ANTI-TRAPAÇA', zone.x, zone.y - zone.height / 2 - 10);
         
         // Status da zona
         if (this.cheatingDetected) {
